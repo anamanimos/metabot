@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meta Suite IG Story Scheduler</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo">📸</div>
+        <div>
+          <h1>IG Story Scheduler</h1>
+          <p class="subtitle">Meta Business Suite Automation</p>
+        </div>
+      </div>
+      <span id="statusBadge" class="badge badge-idle">IDLE</span>
+    </header>
+
+    <!-- Upload Section -->
+    <section class="card upload-card">
+      <label for="jsonFileInput" class="dropzone" id="dropzone">
+        <div class="dropzone-icon">📁</div>
+        <div class="dropzone-text">
+          <strong>Pilih atau Drag File JSON Jadwal</strong>
+          <span>Format: array of object (mediaUrl, date, time)</span>
+        </div>
+        <input type="file" id="jsonFileInput" accept=".json">
+      </label>
+      
+      <div class="action-row">
+        <button id="btnDownloadSample" class="btn btn-secondary">
+          📥 Download Template JSON
+        </button>
+      </div>
+    </section>
+
+    <!-- Summary Section (Hidden initially) -->
+    <section id="summarySection" class="card summary-card hidden">
+      <h3>📋 Detail Antrean Jadwal</h3>
+      <div class="summary-meta">
+        <div>Total Item: <strong id="totalItemsCount">0</strong></div>
+        <div>Progress: <strong id="progressCount">0 / 0</strong></div>
+      </div>
+
+      <div class="progress-bar-container">
+        <div id="progressBar" class="progress-bar" style="width: 0%;"></div>
+      </div>
+
+      <!-- Item Preview List -->
+      <div id="itemList" class="item-list"></div>
+    </section>
+
+    <!-- Controls -->
+    <section class="card controls-card">
+      <button id="btnStart" class="btn btn-primary" disabled>
+        🚀 Mulai Otomatisasi
+      </button>
+      <button id="btnPause" class="btn btn-warning hidden">
+        ⏸️ Jeda
+      </button>
+      <button id="btnReset" class="btn btn-danger" disabled>
+        🔄 Reset Antrean
+      </button>
+    </section>
+
+    <!-- Live Log Console -->
+    <section class="card log-card">
+      <div class="log-header">
+        <span>📟 Live Log Console</span>
+        <button id="btnClearLog" class="btn-text">Bersihkan</button>
+      </div>
+      <div id="logConsole" class="log-console">
+        <div class="log-entry log-info">[SYSTEM] Siap. Silakan unggah file JSON jadwal untuk memulai.</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
