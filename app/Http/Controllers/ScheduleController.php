@@ -133,7 +133,7 @@ class ScheduleController extends Controller
             }
 
             $scheduleJsonPath = base_path('schedule.json');
-            file_put_contents($scheduleJsonPath, json_encode($jsonExport, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            @file_put_contents($scheduleJsonPath, json_encode($jsonExport, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
             $basePath = base_path();
             $pythonBin = $this->getPythonBinary();
