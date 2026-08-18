@@ -21,7 +21,11 @@ class ProjectController extends Controller
         if (file_exists($laragonPython)) {
             return '"' . $laragonPython . '"';
         }
-        return 'python';
+        $venvPython = base_path('venv/bin/python3');
+        if (file_exists($venvPython)) {
+            return $venvPython;
+        }
+        return 'python3';
     }
 
     public function index(Request $request)
@@ -85,6 +89,9 @@ class ProjectController extends Controller
                 'portfolio_name' => 'required|string',
                 'target_time' => 'required|string',
                 'images_per_post' => 'required|integer|min:1|max:10',
+                'repeat_type' => 'required|in:continuous,once,until_date',
+                'start_date' => 'nullable|date',
+                'end_date' => 'nullable|date|after_or_equal:start_date',
                 'exclude_days' => 'nullable|array',
                 'media_files' => 'required|array|min:1',
                 'media_files.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:50000',
@@ -98,8 +105,11 @@ class ProjectController extends Controller
                 'portfolio_name' => trim($request->portfolio_name),
                 'target_time' => trim($request->target_time),
                 'images_per_post' => (int) $request->images_per_post,
+                'repeat_type' => $request->repeat_type,
+                'start_date' => $request->start_date ? Carbon::parse($request->start_date) : Carbon::today(),
+                'end_date' => $request->end_date ? Carbon::parse($request->end_date) : null,
                 'exclude_days' => array_map('intval', $request->input('exclude_days', [])),
-                'is_continuous' => true,
+                'is_continuous' => ($request->repeat_type === 'continuous'),
                 'status' => 'active',
             ]);
 
@@ -139,10 +149,10 @@ class ProjectController extends Controller
 
             $project->mediaFiles()->sync($uploadedMediaIds);
 
-            // Inisialisasi Buffer 29 Hari Pertama
-            $this->seedInitial29DayBuffer($project);
+            // Inisialisasi Buffer Sesuai Mode Repeat
+            $this->seedInitialBufferByMode($project);
 
-            $msg = "Project '{$project->name}' berhasil dibuat! Buffer jadwal 29 hari telah diinisialisasi.";
+            $msg = "Project '{$project->name}' (" . strtoupper($project->repeat_type) . ") berhasil dibuat!";
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -175,6 +185,9 @@ class ProjectController extends Controller
                 'portfolio_name' => 'required|string',
                 'target_time' => 'required|string',
                 'images_per_post' => 'required|integer|min:1|max:10',
+                'repeat_type' => 'required|in:continuous,once,until_date',
+                'start_date' => 'nullable|date',
+                'end_date' => 'nullable|date|after_or_equal:start_date',
                 'exclude_days' => 'nullable|array',
                 'media_files' => 'nullable|array',
                 'media_files.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:50000',
@@ -185,6 +198,9 @@ class ProjectController extends Controller
                 'portfolio_name' => trim($request->portfolio_name),
                 'target_time' => trim($request->target_time),
                 'images_per_post' => (int) $request->images_per_post,
+                'repeat_type' => $request->repeat_type,
+                'start_date' => $request->start_date ? Carbon::parse($request->start_date) : $project->start_date,
+                'end_date' => $request->end_date ? Carbon::parse($request->end_date) : null,
                 'exclude_days' => array_map('intval', $request->input('exclude_days', [])),
             ]);
 
@@ -319,19 +335,55 @@ class ProjectController extends Controller
         }
     }
 
-    protected function seedInitial29DayBuffer(Project $project)
+    protected function seedInitialBufferByMode(Project $project)
     {
-        $startDate = Carbon::today()->addDay();
         $mediaFiles = $project->mediaFiles;
         if ($mediaFiles->isEmpty()) return;
 
         $excludeDays = $project->exclude_days ?? [];
         $imagesPerPost = $project->images_per_post;
         $mediaIndex = 0;
-        $created = 0;
 
-        for ($i = 0; $i < 29; $i++) {
+        // MODE 1: ONCE (Hanya 1x Post)
+        if ($project->repeat_type === 'once') {
+            $targetDate = $project->start_date ? Carbon::parse($project->start_date) : Carbon::today();
+            $dateStr = $targetDate->format('Y-m-d');
+
+            $paths = [];
+            for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
+                $pickedMedia = $mediaFiles[$imgIdx % $mediaFiles->count()];
+                $paths[] = asset($pickedMedia->file_path);
+            }
+
+            $primaryPath = $paths[0] ?? '';
+            $itemCode = 'proj_' . $project->id . '_' . $dateStr . '_' . rand(10, 99);
+
+            Schedule::create([
+                'project_id' => $project->id,
+                'item_code' => $itemCode,
+                'portfolio_name' => $project->portfolio_name,
+                'media_path' => $primaryPath,
+                'media_paths' => $paths,
+                'target_date' => $dateStr,
+                'target_time' => $project->target_time,
+                'status' => 'pending',
+                'notes' => "Schedule Single Post Project '{$project->name}'",
+            ]);
+            return;
+        }
+
+        // MODE 2 & 3: CONTINUOUS & UNTIL_DATE
+        $startDate = $project->start_date ? Carbon::parse($project->start_date) : Carbon::today()->addDay();
+        $limitDays = 29;
+
+        for ($i = 0; $i < $limitDays; $i++) {
             $currentDate = $startDate->copy()->addDays($i);
+
+            // Jika mode until_date dan sudah melewati end_date
+            if ($project->repeat_type === 'until_date' && $project->end_date && $currentDate->gt($project->end_date)) {
+                break;
+            }
+
             if (in_array($currentDate->dayOfWeek, $excludeDays)) {
                 continue;
             }
@@ -363,10 +415,8 @@ class ProjectController extends Controller
                 'target_date' => $dateStr,
                 'target_time' => $project->target_time,
                 'status' => 'pending',
-                'notes' => "Rolling 29-Day Buffer Project '{$project->name}' (Hari ke-" . ($created + 1) . ")",
+                'notes' => "Buffer Project '{$project->name}' (" . strtoupper($project->repeat_type) . ")",
             ]);
-
-            $created++;
         }
     }
 

@@ -15,6 +15,9 @@ class Project extends Model
         'portfolio_name',
         'target_time',
         'images_per_post',
+        'repeat_type',
+        'start_date',
+        'end_date',
         'exclude_days',
         'is_continuous',
         'status',
@@ -23,6 +26,8 @@ class Project extends Model
     protected $casts = [
         'exclude_days' => 'array',
         'is_continuous' => 'boolean',
+        'start_date' => 'date',
+        'end_date' => 'date',
     ];
 
     public function metaAccount(): BelongsTo
@@ -32,9 +37,7 @@ class Project extends Model
 
     public function mediaFiles(): BelongsToMany
     {
-        return $this->belongsToMany(MediaFile::class, 'project_media')
-                    ->withPivot('sort_order')
-                    ->withTimestamps();
+        return $this->belongsToMany(MediaFile::class, 'project_media')->withPivot('sort_order')->orderBy('pivot_sort_order');
     }
 
     public function schedules(): HasMany

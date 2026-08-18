@@ -25,7 +25,7 @@
                 <span>Buat Project Campaign Baru</span>
             </h1>
             <p class="text-sm text-gray-400 mt-1">
-                Isi konfigurasi aturan campaign untuk mengaktifkan penjadwalan Story **Rolling 30-Day Buffer** otomatis.
+                Pilih moda pengulangan **Kontinu**, **1x Post**, atau **Sampai Tanggal Tertentu**.
             </p>
         </div>
 
@@ -58,6 +58,51 @@
                 </div>
             </div>
 
+            <!-- Tipe Pengulangan Project (Repeat Mode) -->
+            <div class="space-y-3">
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider">Mode Pengulangan Posting (Repeat Mode)</label>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <label class="flex items-start space-x-3 bg-gray-900 p-4 rounded-xl border border-gray-700 cursor-pointer hover:border-indigo-500 transition">
+                        <input type="radio" name="repeat_type" value="continuous" checked class="mt-0.5 text-indigo-600 focus:ring-indigo-500" onchange="toggleRepeatFields()">
+                        <div>
+                            <strong class="text-white block font-semibold">♾️ Kontinu Selamanya</strong>
+                            <span class="text-gray-400 text-[11px]">Terus tayang dengan rolling buffer 29 hari otomatis.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start space-x-3 bg-gray-900 p-4 rounded-xl border border-gray-700 cursor-pointer hover:border-indigo-500 transition">
+                        <input type="radio" name="repeat_type" value="once" class="mt-0.5 text-indigo-600 focus:ring-indigo-500" onchange="toggleRepeatFields()">
+                        <div>
+                            <strong class="text-white block font-semibold">🎯 Hanya 1x Post</strong>
+                            <span class="text-gray-400 text-[11px]">Posting 1 kali saja pada tanggal yang dipilih.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start space-x-3 bg-gray-900 p-4 rounded-xl border border-gray-700 cursor-pointer hover:border-indigo-500 transition">
+                        <input type="radio" name="repeat_type" value="until_date" class="mt-0.5 text-indigo-600 focus:ring-indigo-500" onchange="toggleRepeatFields()">
+                        <div>
+                            <strong class="text-white block font-semibold">📅 Sampai Tanggal Tertentu</strong>
+                            <span class="text-gray-400 text-[11px]">Berulang harian dan otomatis berhenti pada tanggal akhir.</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Dynamic Date Inputs (Single Date vs Range End Date) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="dateInputsContainer">
+                <div id="startDateWrapper" class="hidden">
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2" id="startDateLabel">Tanggal Tayang</label>
+                    <input type="date" name="start_date" value="{{ date('Y-m-d') }}" 
+                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+                </div>
+
+                <div id="endDateWrapper" class="hidden">
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Tanggal Berakhir (Dihentikan)</label>
+                    <input type="date" name="end_date" value="{{ date('Y-m-d', strtotime('+30 days')) }}" 
+                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+                </div>
+            </div>
+
             <!-- Jam Tayang & Jumlah Gambar per Post -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -78,7 +123,7 @@
             </div>
 
             <!-- Exclude Days -->
-            <div>
+            <div id="excludeDaysWrapper">
                 <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Kecualikan Hari (Jangan Posting Pada Hari Ini)</label>
                 <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 text-xs">
                     <label class="flex items-center space-x-2 bg-gray-900 p-3 rounded-xl border border-gray-800 cursor-pointer hover:border-gray-700 transition">
@@ -146,7 +191,7 @@
                 </a>
                 <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
                     <i class="fa-solid fa-rocket"></i>
-                    <span>Simpan & Inisialisasi Buffer 30 Hari</span>
+                    <span>Simpan & Inisialisasi Project</span>
                 </button>
             </div>
         </form>
@@ -181,6 +226,30 @@
     let lightboxItems = [];
     let currentLightboxIdx = 0;
 
+    function toggleRepeatFields() {
+        const repeatType = document.querySelector('input[name="repeat_type"]:checked').value;
+        const startWrapper = document.getElementById('startDateWrapper');
+        const endWrapper = document.getElementById('endDateWrapper');
+        const startLabel = document.getElementById('startDateLabel');
+        const excludeDaysWrapper = document.getElementById('excludeDaysWrapper');
+
+        if (repeatType === 'continuous') {
+            startWrapper.classList.add('hidden');
+            endWrapper.classList.add('hidden');
+            excludeDaysWrapper.classList.remove('hidden');
+        } else if (repeatType === 'once') {
+            startWrapper.classList.remove('hidden');
+            endWrapper.classList.add('hidden');
+            startLabel.textContent = 'Tanggal Tayang (Single Post)';
+            excludeDaysWrapper.classList.add('hidden');
+        } else if (repeatType === 'until_date') {
+            startWrapper.classList.remove('hidden');
+            endWrapper.classList.remove('hidden');
+            startLabel.textContent = 'Tanggal Mulai Campaign';
+            excludeDaysWrapper.classList.remove('hidden');
+        }
+    }
+
     // Filter Portfolios by Account
     function filterPortfoliosByAccount() {
         const accId = document.getElementById('selectMetaAccount').value;
@@ -205,6 +274,7 @@
 
     document.getElementById('selectMetaAccount')?.addEventListener('change', filterPortfoliosByAccount);
     filterPortfoliosByAccount();
+    toggleRepeatFields();
 
     // Instant Media Preview Grid & Lightbox Preparation
     document.getElementById('inputMediaFiles').addEventListener('change', function() {
@@ -317,7 +387,7 @@
         e.preventDefault();
         const formData = new FormData(this);
 
-        showLoading('Menginisialisasi Project Baru...', 'Mengunggah materi media pool dan menginisialisasi buffer penjadwalan 30 hari...');
+        showLoading('Menginisialisasi Project Baru...', 'Mengunggah materi media pool dan menginisialisasi buffer penjadwalan...');
 
         fetch("{{ route('projects.store') }}", {
             method: 'POST',

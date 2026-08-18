@@ -10,11 +10,11 @@ use Illuminate\Console\Command;
 class ReplenishProjectsCommand extends Command
 {
     protected $signature = 'projects:replenish';
-    protected $description = 'Menambah 1 slot jadwal baru (H+29) untuk setiap project aktif agar buffer rolling 29 hari selalu penuh';
+    protected $description = 'Menambah slot jadwal baru (H+29) sesuai aturan repeat_type (continuous / once / until_date)';
 
     public function handle()
     {
-        $this->info("Memulai Rolling 29-Day Buffer Replenish...");
+        $this->info("Memulai Buffer Replenish...");
 
         $projects = Project::where('status', 'active')->with('mediaFiles')->get();
         if ($projects->isEmpty()) {
@@ -26,6 +26,15 @@ class ReplenishProjectsCommand extends Command
         $replenishedCount = 0;
 
         foreach ($projects as $project) {
+            // Skip project sekali tayang yang sudah pernah ter-create
+            if ($project->repeat_type === 'once') {
+                $hasPending = Schedule::where('project_id', $project->id)->where('status', 'pending')->exists();
+                if (!$hasPending) {
+                    $project->update(['status' => 'completed']);
+                }
+                continue;
+            }
+
             $mediaFiles = $project->mediaFiles;
             if ($mediaFiles->isEmpty()) {
                 continue;
@@ -34,9 +43,13 @@ class ReplenishProjectsCommand extends Command
             $excludeDays = $project->exclude_days ?? [];
             $imagesPerPost = $project->images_per_post;
 
-            // Kita pastikan antrean terisi 29 hari ke depan dari besok
             for ($i = 0; $i < 29; $i++) {
                 $targetDate = $startDate->copy()->addDays($i);
+
+                // Cek jika mode 'until_date' dan sudah melewati end_date
+                if ($project->repeat_type === 'until_date' && $project->end_date && $targetDate->gt($project->end_date)) {
+                    break;
+                }
 
                 if (in_array($targetDate->dayOfWeek, $excludeDays)) {
                     continue;
@@ -52,7 +65,6 @@ class ReplenishProjectsCommand extends Command
                     continue;
                 }
 
-                // Pick media files for this post
                 $paths = [];
                 $scheduleCount = Schedule::where('project_id', $project->id)->count();
                 $mediaIndex = $scheduleCount * $imagesPerPost;
@@ -74,14 +86,22 @@ class ReplenishProjectsCommand extends Command
                     'target_date' => $dateStr,
                     'target_time' => $project->target_time,
                     'status' => 'pending',
-                    'notes' => "Rolling 29-Day Buffer Project '{$project->name}'",
+                    'notes' => "Buffer Project '{$project->name}' (" . strtoupper($project->repeat_type) . ")",
                 ]);
 
                 $replenishedCount++;
             }
+
+            // Cek jika repeat_type == until_date dan sudah tidak ada slot pending
+            if ($project->repeat_type === 'until_date' && $project->end_date && Carbon::today()->gt($project->end_date)) {
+                $hasPending = Schedule::where('project_id', $project->id)->where('status', 'pending')->exists();
+                if (!$hasPending) {
+                    $project->update(['status' => 'completed']);
+                }
+            }
         }
 
-        $this->info("Selesai! Berhasil menambahkan {$replenishedCount} slot jadwal baru untuk buffer 29 hari.");
+        $this->info("Selesai! Berhasil menambahkan {$replenishedCount} slot jadwal baru.");
         return 0;
     }
 }
