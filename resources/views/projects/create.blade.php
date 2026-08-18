@@ -30,6 +30,8 @@
         </div>
 
         <form id="formCreateProject" enctype="multipart/form-data" class="space-y-6">
+            <input type="hidden" name="images_per_post" value="1">
+
             <!-- Nama Project -->
             <div>
                 <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Nama Project / Campaign</label>
@@ -103,23 +105,11 @@
                 </div>
             </div>
 
-            <!-- Jam Tayang & Jumlah Gambar per Post -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Jam Tayang Story Harian (HH:mm)</label>
-                    <input type="time" name="target_time" value="07:30" required 
-                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Jumlah Gambar / Post (Multi-Image)</label>
-                    <select name="images_per_post" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
-                        <option value="1" selected>1 Gambar (Single Story)</option>
-                        <option value="2">2 Gambar (Multi-Image Story)</option>
-                        <option value="3">3 Gambar</option>
-                        <option value="4">4 Gambar</option>
-                    </select>
-                </div>
+            <!-- Jam Tayang Story -->
+            <div>
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Jam Tayang Story Harian (HH:mm)</label>
+                <input type="time" name="target_time" value="07:30" required 
+                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
             </div>
 
             <!-- Exclude Days -->
