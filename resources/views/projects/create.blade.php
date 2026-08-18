@@ -76,7 +76,7 @@
                         <input type="radio" name="repeat_type" value="once" class="mt-0.5 text-indigo-600 focus:ring-indigo-500" onchange="toggleRepeatFields()">
                         <div>
                             <strong class="text-white block font-semibold">🎯 Hanya 1x Post</strong>
-                            <span class="text-gray-400 text-[11px]">Posting 1 kali saja pada tanggal yang dipilih.</span>
+                            <span class="text-gray-400 text-[11px]">Posting 1 kali saja pada tanggal yang dipilih (Min +30 menit).</span>
                         </div>
                     </label>
 
@@ -94,7 +94,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="dateInputsContainer">
                 <div id="startDateWrapper" class="hidden">
                     <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2" id="startDateLabel">Tanggal Tayang</label>
-                    <input type="date" name="start_date" value="{{ date('Y-m-d') }}" 
+                    <input type="date" name="start_date" id="inputStartDate" value="{{ date('Y-m-d') }}" 
                            class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
                 </div>
 
@@ -108,8 +108,12 @@
             <!-- Jam Tayang Story -->
             <div>
                 <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Jam Tayang Story Harian (HH:mm)</label>
-                <input type="time" name="target_time" value="07:30" required 
+                <input type="time" name="target_time" id="inputTargetTime" value="07:30" required 
                        class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
+                <p id="onceTimeNotice" class="hidden text-[11px] text-amber-400 mt-1.5 flex items-center space-x-1">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>Khusus mode 1x Post: Waktu tayang minimal **30 menit dari jam sekarang** (hari ini).</span>
+                </p>
             </div>
 
             <!-- Exclude Days -->
@@ -222,21 +226,33 @@
         const endWrapper = document.getElementById('endDateWrapper');
         const startLabel = document.getElementById('startDateLabel');
         const excludeDaysWrapper = document.getElementById('excludeDaysWrapper');
+        const onceNotice = document.getElementById('onceTimeNotice');
+        const timeInput = document.getElementById('inputTargetTime');
 
         if (repeatType === 'continuous') {
             startWrapper.classList.add('hidden');
             endWrapper.classList.add('hidden');
             excludeDaysWrapper.classList.remove('hidden');
+            onceNotice.classList.add('hidden');
         } else if (repeatType === 'once') {
             startWrapper.classList.remove('hidden');
             endWrapper.classList.add('hidden');
             startLabel.textContent = 'Tanggal Tayang (Single Post)';
             excludeDaysWrapper.classList.add('hidden');
+            onceNotice.classList.remove('hidden');
+
+            // Auto set target time to now + 30 mins if date is today
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 30);
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            timeInput.value = `${hours}:${minutes}`;
         } else if (repeatType === 'until_date') {
             startWrapper.classList.remove('hidden');
             endWrapper.classList.remove('hidden');
             startLabel.textContent = 'Tanggal Mulai Campaign';
             excludeDaysWrapper.classList.remove('hidden');
+            onceNotice.classList.add('hidden');
         }
     }
 

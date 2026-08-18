@@ -21,11 +21,7 @@ class ProjectController extends Controller
         if (file_exists($laragonPython)) {
             return '"' . $laragonPython . '"';
         }
-        $venvPython = base_path('venv/bin/python3');
-        if (file_exists($venvPython)) {
-            return $venvPython;
-        }
-        return 'python3';
+        return 'python';
     }
 
     public function index(Request $request)
@@ -88,7 +84,7 @@ class ProjectController extends Controller
                 'meta_account_id' => 'nullable|exists:meta_accounts,id',
                 'portfolio_name' => 'required|string',
                 'target_time' => 'required|string',
-                'images_per_post' => 'required|integer|min:1|max:10',
+                'images_per_post' => 'nullable|integer|min:1|max:10',
                 'repeat_type' => 'required|in:continuous,once,until_date',
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -97,6 +93,26 @@ class ProjectController extends Controller
                 'media_files.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:50000',
             ]);
 
+            // Validasi Aturan 1x Post: Minimal 30 menit dari jam sekarang
+            if ($request->repeat_type === 'once') {
+                $targetDateStr = $request->start_date ? Carbon::parse($request->start_date)->format('Y-m-d') : Carbon::today()->format('Y-m-d');
+                $targetDateTimeStr = $targetDateStr . ' ' . trim($request->target_time);
+                $scheduledAt = Carbon::parse($targetDateTimeStr);
+                $minAllowedTime = Carbon::now()->addMinutes(30);
+
+                if ($scheduledAt->lt($minAllowedTime)) {
+                    $minTimeFormatted = $minAllowedTime->format('H:i');
+                    $msg = "Untuk mode 1x Post, waktu penjadwalan minimal 30 menit dari jam sekarang (minimal jam {$minTimeFormatted} WIB).";
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $msg,
+                        ], 422);
+                    }
+                    return redirect()->back()->with('error', $msg);
+                }
+            }
+
             $account = MetaAccount::find($request->meta_account_id) ?? MetaAccount::first();
 
             $project = Project::create([
@@ -104,7 +120,7 @@ class ProjectController extends Controller
                 'meta_account_id' => $account?->id,
                 'portfolio_name' => trim($request->portfolio_name),
                 'target_time' => trim($request->target_time),
-                'images_per_post' => (int) $request->images_per_post,
+                'images_per_post' => (int) ($request->images_per_post ?? 1),
                 'repeat_type' => $request->repeat_type,
                 'start_date' => $request->start_date ? Carbon::parse($request->start_date) : Carbon::today(),
                 'end_date' => $request->end_date ? Carbon::parse($request->end_date) : null,
@@ -184,7 +200,7 @@ class ProjectController extends Controller
                 'name' => 'required|string|max:255',
                 'portfolio_name' => 'required|string',
                 'target_time' => 'required|string',
-                'images_per_post' => 'required|integer|min:1|max:10',
+                'images_per_post' => 'nullable|integer|min:1|max:10',
                 'repeat_type' => 'required|in:continuous,once,until_date',
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -193,11 +209,31 @@ class ProjectController extends Controller
                 'media_files.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:50000',
             ]);
 
+            // Validasi Aturan 1x Post: Minimal 30 menit dari jam sekarang
+            if ($request->repeat_type === 'once') {
+                $targetDateStr = $request->start_date ? Carbon::parse($request->start_date)->format('Y-m-d') : Carbon::today()->format('Y-m-d');
+                $targetDateTimeStr = $targetDateStr . ' ' . trim($request->target_time);
+                $scheduledAt = Carbon::parse($targetDateTimeStr);
+                $minAllowedTime = Carbon::now()->addMinutes(30);
+
+                if ($scheduledAt->lt($minAllowedTime)) {
+                    $minTimeFormatted = $minAllowedTime->format('H:i');
+                    $msg = "Untuk mode 1x Post, waktu penjadwalan minimal 30 menit dari jam sekarang (minimal jam {$minTimeFormatted} WIB).";
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $msg,
+                        ], 422);
+                    }
+                    return redirect()->back()->with('error', $msg);
+                }
+            }
+
             $project->update([
                 'name' => trim($request->name),
                 'portfolio_name' => trim($request->portfolio_name),
                 'target_time' => trim($request->target_time),
-                'images_per_post' => (int) $request->images_per_post,
+                'images_per_post' => (int) ($request->images_per_post ?? 1),
                 'repeat_type' => $request->repeat_type,
                 'start_date' => $request->start_date ? Carbon::parse($request->start_date) : $project->start_date,
                 'end_date' => $request->end_date ? Carbon::parse($request->end_date) : null,
@@ -341,7 +377,7 @@ class ProjectController extends Controller
         if ($mediaFiles->isEmpty()) return;
 
         $excludeDays = $project->exclude_days ?? [];
-        $imagesPerPost = $project->images_per_post;
+        $imagesPerPost = $project->images_per_post ?: 1;
         $mediaIndex = 0;
 
         // MODE 1: ONCE (Hanya 1x Post)
