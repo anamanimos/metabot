@@ -27,14 +27,62 @@ SECTION_HEADER_BLACKLIST = [
     "cari aset bisnis", "buat portofolio bisnis"
 ]
 
-def scan_currently_active_panel(page, top_button_locator):
-    """Baca nama entitas aktif dari tombol dropdown header (misal 'NB Tour Organizer'), lalu pindai aset yang SUDAH TAMPIL di panel kanan tanpa perlu klik apapun."""
+def find_active_sidebar_group_name(page):
+    """Cari nama grup portofolio/akun yang sedang aktif di sidebar kiri, 
+    dengan mendeteksi elemen yang punya indikator 'selected/active' 
+    (misalnya border/background berbeda, atau titik indikator merah/aria-checked). 
+    JANGAN mengambil dari tombol header dropdown karena itu menampilkan nama ASET, bukan nama GRUP."""
     try:
-        active_name = top_button_locator.inner_text().strip()
-        active_name = active_name.split(",")[0].split("\n")[0].strip()
-        log(f"Entitas aktif terdeteksi dari tombol header: '{active_name}'", "INFO")
-    except Exception:
-        active_name = "NB Tour Organizer"
+        # Coba deteksi via atribut aria-checked / aria-selected / role='radio'
+        sidebar_items = page.locator(
+            "div[role='radio'], div[aria-checked='true'], div[aria-selected='true']"
+        ).all()
+        
+        for item in sidebar_items:
+            try:
+                is_checked = item.get_attribute("aria-checked")
+                is_selected = item.get_attribute("aria-selected")
+                if (is_checked and is_checked.lower() == "true") or (is_selected and is_selected.lower() == "true"):
+                    text = item.inner_text().strip()
+                    lines = [l.strip() for l in text.split("\n") if l.strip()]
+                    if lines and lines[0].strip().lower() not in SECTION_HEADER_BLACKLIST:
+                        group_name = lines[0].strip()
+                        log(f"Sidebar item aktif terdeteksi: '{group_name}'", "INFO")
+                        return group_name
+            except Exception:
+                continue
+        
+        # Fallback: cari section 'Akun Anda' dan ambil nama item di dalamnya (biasanya akun personal)
+        akun_anda_section = page.get_by_text("Akun Anda", exact=False).first
+        if akun_anda_section.is_visible(timeout=2000):
+            try:
+                parent = akun_anda_section.locator("xpath=following-sibling::div[1]")
+                text = parent.inner_text().strip()
+                lines = [l.strip() for l in text.split("\n") if l.strip()]
+                if lines and "aset bisnis" in lines[-1].lower():
+                    group_name = lines[0].strip()
+                    if group_name.lower() not in SECTION_HEADER_BLACKLIST:
+                        log(f"Fallback: menggunakan nama dari section 'Akun Anda': '{group_name}'", "INFO")
+                        return group_name
+            except Exception:
+                pass
+    except Exception as e:
+        log(f"Gagal mendeteksi nama grup aktif dari sidebar: {e}", "WARN")
+    
+    return None
+
+def scan_currently_active_panel(page, top_button_locator):
+    """Pindai aset yang SUDAH TAMPIL di panel kanan saat dropdown 
+    pertama dibuka, dengan nama grup yang BENAR (diambil dari sidebar, 
+    BUKAN dari tombol header dropdown)."""
+    
+    active_group_name = find_active_sidebar_group_name(page)
+    
+    if not active_group_name:
+        log("Tidak dapat menentukan nama grup aktif dari sidebar. Menggunakan label default 'Non Portofolio'.", "WARN")
+        active_group_name = "Non Portofolio"
+    else:
+        log(f"Grup aktif default terkonfirmasi: '{active_group_name}'", "SUCCESS")
     
     results = []
     asset_items = page.locator("div").filter(has_text="Halaman Facebook").all()
@@ -52,14 +100,15 @@ def scan_currently_active_panel(page, top_button_locator):
                 if key not in seen and ("Halaman Facebook" in asset_type or "Profil Instagram" in asset_type or "profil Instagram" in asset_type):
                     seen.add(key)
                     results.append({
-                        "portfolio_name": active_name,
+                        "portfolio_name": active_group_name,
                         "asset_name": asset_name,
                         "asset_type": asset_type,
-                        "combined_target": f"{active_name} - {asset_name}"
+                        "combined_target": f"{active_group_name} - {asset_name}"
                     })
-                    log(f"  -> [PANEL AKTIF DEFAULT] Aset ditemukan: '{asset_name}' ({asset_type})", "SUCCESS")
+                    log(f"  -> [PANEL AKTIF DEFAULT: {active_group_name}] Aset ditemukan: '{asset_name}' ({asset_type})", "SUCCESS")
         except Exception:
             continue
+    
     return results
 
 def deduplicate_results(results):
@@ -84,7 +133,8 @@ def deduplicate_results(results):
         else:
             existing_item = seen_assets[asset_key]
             existing_p = existing_item.get("portfolio_name", "")
-            if existing_p.lower() in ["choirul anam", "unknown_active", "portofolio bisnis"] and p_name.lower() not in ["choirul anam", "unknown_active", "portofolio bisnis"]:
+            # Prioritaskan nama portofolio bisnis spesifik dibanding 'Non Portofolio' atau header generik
+            if existing_p.lower() in ["non portofolio", "unknown_active", "portofolio bisnis"] and p_name.lower() not in ["non portofolio", "unknown_active", "portofolio bisnis"]:
                 log(f"Deduplikasi: Memperbarui portofolio untuk aset '{a_name}' dari '{existing_p}' -> '{p_name}'", "INFO")
                 seen_assets[asset_key] = item
                 for idx, d in enumerate(deduped):
@@ -126,7 +176,7 @@ def scan_all_portfolios_and_assets(page):
 
     page.wait_for_timeout(2000)
 
-    # 1. SCAN PANEL KANAN YANG SUDAH TERBUKA DEFAULT
+    # 1. SCAN PANEL KANAN YANG SUDAH TERBUKA DEFAULT (Menggunakan nama grup aktif dari sidebar, BUKAN dari header button)
     initial_results = scan_currently_active_panel(page, top_button)
     results.extend(initial_results)
     
@@ -154,7 +204,7 @@ def scan_all_portfolios_and_assets(page):
     
     log(f"Nama grup portofolio unik yang terdeteksi: {group_names}", "INFO")
     
-    # 3. KLIKS KANAN TIAP GRUP & PINDAI ASET DI PANEL KANAN
+    # 3. KLIK TIAP GRUP & PINDAI ASET DI PANEL KANAN
     for group_name in group_names:
         try:
             log(f"Memindai aset di dalam grup '{group_name}'...", "INFO")
