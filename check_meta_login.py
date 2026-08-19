@@ -30,9 +30,8 @@ def check_login():
     output_path = str(Path(args.output).resolve())
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    is_headless = False if sys.platform == 'win32' and os.environ.get("DISPLAY") else (not bool(os.environ.get("DISPLAY")))
-    if sys.platform != 'win32' and not os.environ.get("DISPLAY"):
-        is_headless = True
+    # Paksa Headless = True pada Linux agar tidak membutuhkan GUI / X-Server
+    is_headless = True if sys.platform != 'win32' else False
 
     storage_state_file = Path("state.json")
     storage_state_path = str(storage_state_file) if storage_state_file.exists() else None
@@ -46,7 +45,6 @@ def check_login():
 
     try:
         with sync_playwright() as p:
-            # Gunakan browser.launch biasa (non-persistent) untuk menghindari bentrok SingletonLock profile
             browser = p.chromium.launch(
                 headless=is_headless,
                 args=[

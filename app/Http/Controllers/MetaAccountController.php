@@ -182,7 +182,7 @@ class MetaAccountController extends Controller
                 $cmd = "cd /d \"{$basePath}\" && {$pythonBin} check_meta_login.py --user_data={$account->session_folder} --output={$outputPath}";
             } else {
                 $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
-                $cmd = "export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && cd \"{$basePath}\" && xvfb-run -a {$venvPython} check_meta_login.py --user_data={$account->session_folder} --output={$outputPath}";
+                $cmd = "export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && cd \"{$basePath}\" && {$venvPython} check_meta_login.py --user_data={$account->session_folder} --output={$outputPath}";
             }
 
             $output = shell_exec($cmd);
