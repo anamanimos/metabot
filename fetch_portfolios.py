@@ -27,43 +27,66 @@ SECTION_HEADER_BLACKLIST = [
     "cari aset bisnis", "buat portofolio bisnis"
 ]
 
+def is_invalid_or_asset_group_name(name):
+    """Mengecek apakah nama grup tidak valid, header generik, atau nama aset yang salah tertangkap (mengandung koma username)."""
+    if not name:
+        return True
+    name_lower = name.strip().lower()
+    if name_lower in SECTION_HEADER_BLACKLIST or name_lower in ["non portofolio", "unknown_active"]:
+        return True
+    # Nama aset khas Meta Business Suite mengandung koma (contoh: "NB Tour Organizer, nbto.mlg")
+    if "," in name and len(name.split(",")) > 1:
+        return True
+    return False
+
 def find_active_sidebar_group_name(page):
-    """Cari nama grup portofolio/akun yang sedang aktif di sidebar kiri, 
-    dengan mendeteksi elemen yang punya indikator 'selected/active' 
-    (misalnya border/background berbeda, atau titik indikator merah/aria-checked). 
-    JANGAN mengambil dari tombol header dropdown karena itu menampilkan nama ASET, bukan nama GRUP."""
+    """Cari nama grup portofolio/akun yang sedang aktif di SIDEBAR KIRI SAJA.
+    Memfilter elemen yang mengandung 'aset bisnis' (ciri khas sidebar kiri) untuk mengabaikan radio button aset di panel kanan."""
     try:
-        # Coba deteksi via atribut aria-checked / aria-selected / role='radio'
-        sidebar_items = page.locator(
-            "div[role='radio'], div[aria-checked='true'], div[aria-selected='true']"
-        ).all()
+        # 1. Cari item di sidebar kiri yang mempunyai text 'aset bisnis' (0 aset bisnis / N aset bisnis)
+        group_items = page.locator("div").filter(has_text="aset bisnis").all()
         
-        for item in sidebar_items:
+        for item in group_items:
             try:
-                is_checked = item.get_attribute("aria-checked")
-                is_selected = item.get_attribute("aria-selected")
-                if (is_checked and is_checked.lower() == "true") or (is_selected and is_selected.lower() == "true"):
-                    text = item.inner_text().strip()
-                    lines = [l.strip() for l in text.split("\n") if l.strip()]
-                    if lines and lines[0].strip().lower() not in SECTION_HEADER_BLACKLIST:
-                        group_name = lines[0].strip()
-                        log(f"Sidebar item aktif terdeteksi: '{group_name}'", "INFO")
-                        return group_name
+                text = item.inner_text().strip()
+                lines = [l.strip() for l in text.split("\n") if l.strip()]
+                
+                # Pastikan ini item grup sidebar (punya 2+ baris dan baris terakhir 'N aset bisnis')
+                if len(lines) >= 2 and "aset bisnis" in lines[-1].lower():
+                    g_name = lines[0].strip()
+                    if is_invalid_or_asset_group_name(g_name):
+                        continue
+
+                    # Cek indikator aktif pada elemen ini atau anak elemennya
+                    is_checked = item.get_attribute("aria-checked")
+                    is_selected = item.get_attribute("aria-selected")
+                    
+                    if not is_checked and not is_selected:
+                        try:
+                            child = item.locator("[aria-checked='true'], [aria-selected='true']").first
+                            if child.is_visible(timeout=100):
+                                is_checked = "true"
+                        except Exception:
+                            pass
+
+                    if (is_checked and is_checked.lower() == "true") or (is_selected and is_selected.lower() == "true"):
+                        log(f"Sidebar item grup aktif terdeteksi di sidebar kiri: '{g_name}'", "INFO")
+                        return g_name
             except Exception:
                 continue
-        
-        # Fallback: cari section 'Akun Anda' dan ambil nama item di dalamnya (biasanya akun personal)
+
+        # 2. Fallback: Cari TEPAT di bawah section 'Akun Anda' pada sidebar kiri
         akun_anda_section = page.get_by_text("Akun Anda", exact=False).first
         if akun_anda_section.is_visible(timeout=2000):
             try:
                 parent = akun_anda_section.locator("xpath=following-sibling::div[1]")
                 text = parent.inner_text().strip()
                 lines = [l.strip() for l in text.split("\n") if l.strip()]
-                if lines and "aset bisnis" in lines[-1].lower():
-                    group_name = lines[0].strip()
-                    if group_name.lower() not in SECTION_HEADER_BLACKLIST:
-                        log(f"Fallback: menggunakan nama dari section 'Akun Anda': '{group_name}'", "INFO")
-                        return group_name
+                if lines:
+                    g_name = lines[0].strip()
+                    if not is_invalid_or_asset_group_name(g_name):
+                        log(f"Fallback: menggunakan nama dari section 'Akun Anda': '{g_name}'", "INFO")
+                        return g_name
             except Exception:
                 pass
     except Exception as e:
@@ -73,7 +96,7 @@ def find_active_sidebar_group_name(page):
 
 def scan_currently_active_panel(page, top_button_locator):
     """Pindai aset yang SUDAH TAMPIL di panel kanan saat dropdown 
-    pertama dibuka, dengan nama grup yang BENAR (diambil dari sidebar, 
+    pertama dibuka, dengan nama grup yang BENAR (diambil dari sidebar kiri, 
     BUKAN dari tombol header dropdown)."""
     
     active_group_name = find_active_sidebar_group_name(page)
@@ -133,8 +156,9 @@ def deduplicate_results(results):
         else:
             existing_item = seen_assets[asset_key]
             existing_p = existing_item.get("portfolio_name", "")
-            # Prioritaskan nama portofolio bisnis spesifik dibanding 'Non Portofolio' atau header generik
-            if existing_p.lower() in ["non portofolio", "unknown_active", "portofolio bisnis"] and p_name.lower() not in ["non portofolio", "unknown_active", "portofolio bisnis"]:
+            
+            # Prioritaskan nama grup yang valid jika nama portofolio saat ini tidak valid / berupa koma username
+            if is_invalid_or_asset_group_name(existing_p) and not is_invalid_or_asset_group_name(p_name):
                 log(f"Deduplikasi: Memperbarui portofolio untuk aset '{a_name}' dari '{existing_p}' -> '{p_name}'", "INFO")
                 seen_assets[asset_key] = item
                 for idx, d in enumerate(deduped):
@@ -192,8 +216,8 @@ def scan_all_portfolios_and_assets(page):
             lines = [l.strip() for l in text.split("\n") if l.strip()]
             if len(lines) >= 2 and "aset bisnis" in lines[-1].lower():
                 group_name = lines[0]
-                if group_name.strip().lower() in SECTION_HEADER_BLACKLIST:
-                    log(f"Melewati '{group_name}' karena termasuk header section, bukan nama grup asli.", "INFO")
+                if is_invalid_or_asset_group_name(group_name):
+                    log(f"Melewati '{group_name}' karena termasuk header section / tidak valid, bukan nama grup asli.", "INFO")
                     continue
 
                 if group_name not in seen_groups and len(group_name) < 60:
