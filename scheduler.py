@@ -219,42 +219,80 @@ def download_media_if_url(media_path, custom_filename=None, temp_dir="./temp_med
 # ============================================================================
 
 def select_portfolio_via_search(page, portfolio_name, timeout_ms=15000):
-    """Pilih portofolio bisnis target menggunakan fitur pencarian 'Cari aset bisnis' di dalam dropdown portofolio, bukan scroll manual."""
     log(f"Membuka dropdown portofolio untuk mencari: '{portfolio_name}'...", "INFO")
     
-    # 1. Klik tombol dropdown portofolio di kiri atas (header)
-    try:
-        portfolio_dropdown_btn = page.locator("div[aria-haspopup='listbox'], button[aria-haspopup='listbox']").first
-        portfolio_dropdown_btn.click(timeout=5000)
-    except Exception:
-        page.locator("header div[role='button']").first.click(timeout=5000)
-        
+    portfolio_dropdown_btn = page.locator("div[aria-haspopup='listbox'], button[aria-haspopup='listbox']").first
+    portfolio_dropdown_btn.click(timeout=5000)
     page.wait_for_timeout(1500)
     
-    # 2. Cari & isi search box di dalam dropdown
-    try:
-        search_box = page.get_by_placeholder("Cari aset bisnis").first
-        search_box.wait_for(state="visible", timeout=5000)
-        search_box.click()
-        search_box.fill(portfolio_name)
-        page.wait_for_timeout(1500)  # tunggu hasil filter muncul
-    except Exception as e:
-        log(f"Gagal menemukan/mengisi kotak pencarian 'Cari aset bisnis': {e}", "WARN")
+    search_box = page.get_by_placeholder("Cari aset bisnis").first
+    search_box.wait_for(state="visible", timeout=5000)
+    search_box.click()
+    search_box.fill(portfolio_name)
+    page.wait_for_timeout(1500)
+    
+    log(f"Menganalisis semua kandidat hasil pencarian untuk '{portfolio_name}'...", "INFO")
+    
+    # Ambil semua elemen radio/list item yang mengandung teks portfolio_name
+    all_candidates = page.get_by_text(portfolio_name, exact=False).all()
+    
+    log(f"Ditemukan {len(all_candidates)} kandidat mentah.", "INFO")
+    
+    best_match = None
+    for i, cand in enumerate(all_candidates):
+        try:
+            full_text = cand.inner_text().strip()
+            log(f"  Kandidat #{i}: '{full_text}'", "INFO")
+            
+            # Split berdasarkan koma, ambil segmen pertama, trim, bandingkan PERSIS (case-insensitive) dengan portfolio_name
+            first_segment = full_text.split(",")[0].strip()
+            
+            if first_segment.lower() == portfolio_name.strip().lower():
+                log(f"  -> COCOK PERSIS (segmen pertama = '{first_segment}')", "SUCCESS")
+                
+                # Verifikasi tambahan: pastikan konteksnya "Halaman Facebook" (bukan hanya "Profil Instagram" berdiri sendiri)
+                try:
+                    parent = cand.locator("xpath=ancestor::div[position()<=4][1]")
+                    parent_text = parent.inner_text().strip().lower()
+                    if "halaman facebook" in parent_text or "facebook page" in parent_text:
+                        log(f"  -> Konteks 'Halaman Facebook' terkonfirmasi. Ini kandidat terbaik.", "SUCCESS")
+                        best_match = cand
+                        break
+                    else:
+                        log(f"  -> Konteks bukan 'Halaman Facebook' ('{parent_text[:60]}...'), skip.", "WARN")
+                except Exception:
+                    # Kalau gagal cek parent, tetap terima karena segmen pertama sudah cocok persis
+                    best_match = cand
+                    break
+            else:
+                log(f"  -> Tidak cocok (segmen pertama = '{first_segment}' != '{portfolio_name}')", "INFO")
+        except Exception as e:
+            log(f"  Kandidat #{i}: gagal dibaca ({e})", "WARN")
+            continue
+    
+    if best_match is None:
+        log(f"TIDAK ADA kandidat yang cocok persis dengan '{portfolio_name}'.", "ERROR")
+        try:
+            page.screenshot(path="./debug_portfolio_search_no_match.png", full_page=True)
+        except Exception:
+            pass
         return False
     
-    log(f"Mencari hasil filter untuk '{portfolio_name}'...", "INFO")
+    log(f"Mengklik kandidat terpilih untuk '{portfolio_name}'...", "INFO")
+    best_match.click(timeout=5000)
+    page.wait_for_timeout(2000)
     
-    # 3. Cari item hasil filter yang cocok (radio button / list item)
+    # Cek apakah ada tombol konfirmasi tambahan (opsional)
     try:
-        result_item = page.get_by_text(portfolio_name, exact=False).first
-        result_item.wait_for(state="visible", timeout=5000)
-        result_item.click(timeout=5000)
-        page.wait_for_timeout(2000)
-        log(f"Item portofolio '{portfolio_name}' berhasil diklik dari hasil pencarian.", "SUCCESS")
-        return True
-    except Exception as e:
-        log(f"Gagal menemukan/mengklik hasil pencarian untuk '{portfolio_name}': {e}", "WARN")
-        return False
+        confirm_btn = page.get_by_text("Terapkan", exact=False).first
+        if confirm_btn.is_visible(timeout=2000):
+            confirm_btn.click(timeout=3000)
+            log("Tombol konfirmasi 'Terapkan' diklik.", "INFO")
+            page.wait_for_timeout(1500)
+    except Exception:
+        pass
+    
+    return True
 
 def verify_active_portfolio(page, expected_name, timeout_ms=10000):
     """Baca teks tombol portofolio aktif di header kiri atas, pastikan mengandung nama target. Return True/False, JANGAN mengasumsikan sukses jika gagal."""
@@ -320,7 +358,7 @@ def schedule_story_item(page, item):
     if not media_paths and item.get("mediaPath"):
         media_paths = [item.get("mediaPath")]
     elif not media_paths and item.get("media_path"):
-        media_paths = [item.get("mediaPath")]
+        media_paths = [item.get("media_path")]
 
     log(f"=== MEMPROSES SCHEDULE ITEM [{item_id}] ===", "PROCESS")
     log(f"Target Portofolio: {portfolio_name} | Tanggal: {raw_date} | Jam: {time_str}", "INFO")
