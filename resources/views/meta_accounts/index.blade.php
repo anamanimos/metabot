@@ -13,7 +13,7 @@
                 <span>Akun Meta (Facebook / Instagram)</span>
             </h1>
             <p class="text-sm text-gray-400 mt-1">
-                Kelola status sesi login akun Meta, pindaian portofolio per akun, & impor berkas sesi (`state.json`).
+                Kelola status sesi login akun Meta, pindaian portofolio per akun, & fitur Login Ulang sesi (`state.json`).
             </p>
         </div>
 
@@ -77,16 +77,17 @@
                     </button>
 
                     <div class="grid grid-cols-2 gap-2">
-                        <button onclick="checkAccountStatus({{ $account->id }})" 
+                        <button onclick="checkAccountStatus({{ $account->id }}, '{{ $account->account_name }}')" 
                                 class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold rounded-xl border border-gray-700 transition flex items-center justify-center space-x-1">
                             <i class="fa-solid fa-eye text-indigo-400"></i>
                             <span>Cek Status Live</span>
                         </button>
 
                         <button onclick="openImportStateModal({{ $account->id }}, '{{ $account->account_name }}')" 
-                                class="px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-xs font-semibold rounded-xl border border-indigo-800 transition flex items-center justify-center space-x-1">
+                                id="btn-relogin-{{ $account->id }}"
+                                class="px-3 py-1.5 text-xs font-semibold rounded-xl transition flex items-center justify-center space-x-1 {{ $account->status === 'active' ? 'bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-800' : 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg font-bold border border-amber-400 animate-pulse' }}">
                             <i class="fa-solid fa-key"></i>
-                            <span>Import Sesi</span>
+                            <span>{{ $account->status === 'active' ? 'Import Sesi' : '🔑 Login Ulang' }}</span>
                         </button>
                     </div>
 
@@ -141,17 +142,27 @@
     </div>
 </div>
 
-<!-- Modal Import Sesi Cookie state.json -->
+<!-- Modal Login Ulang / Import Sesi Cookie state.json -->
 <div id="modalImportState" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="card-dark w-full max-w-lg rounded-2xl shadow-2xl border border-gray-800 p-6 space-y-5 relative">
         <div class="flex items-center justify-between border-b border-gray-800 pb-3">
             <h3 class="text-lg font-bold text-white flex items-center space-x-2">
-                <i class="fa-solid fa-key text-indigo-400"></i>
-                <span>Import Sesi Login Meta (<span id="modalImportAccountTitle" class="text-indigo-300"></span>)</span>
+                <i class="fa-solid fa-key text-amber-400"></i>
+                <span>🔑 Login Ulang / Hubungkan Sesi (<span id="modalImportAccountTitle" class="text-amber-300"></span>)</span>
             </h3>
             <button onclick="closeImportStateModal()" class="text-gray-400 hover:text-white transition">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
+        </div>
+
+        <div class="bg-indigo-950/60 border border-indigo-800 p-3 rounded-xl text-xs text-indigo-200 space-y-1">
+            <p class="font-bold flex items-center space-x-1.5 text-indigo-300">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>Petunjuk Login Ulang Cepat:</span>
+            </p>
+            <p class="text-[11px] leading-relaxed text-indigo-300/90">
+                Jalankan script <code>export_session.bat</code> di komputer lokal Anda untuk login 1-kali ke Facebook Meta, lalu unggah file <code>state.json</code> hasil export di bawah ini.
+            </p>
         </div>
 
         <form id="formImportState" class="space-y-4" enctype="multipart/form-data">
@@ -178,7 +189,7 @@
                 <button type="button" onclick="closeImportStateModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl text-xs transition">
                     Batal
                 </button>
-                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
+                <button type="submit" class="px-5 py-2 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                     <span>Simpan & Hubungkan Sesi</span>
                 </button>
@@ -200,7 +211,7 @@
 
     function openImportStateModal(id, accountName) {
         document.getElementById('importAccountId').value = id;
-        document.getElementById('modalImportAccountTitle').textContent = accountName;
+        document.getElementById('modalImportAccountTitle').textContent = accountName || '';
         document.getElementById('modalImportState').classList.remove('hidden');
     }
 
@@ -237,8 +248,8 @@
         });
     }
 
-    // Cek Status Login Akun Live dengan Tangkapan Layar (Screenshot) Meta Dashboard
-    function checkAccountStatus(id) {
+    // Cek Status Login Akun Live dengan Fitur Login Ulang Langsung dari Modal Pop-up
+    function checkAccountStatus(id, accountName) {
         showLoading('Memeriksa Status Login Meta...', 'Membuka Chromium browser untuk mengambil tangkapan layar Meta Business Suite real-time...');
 
         fetch(`/meta-accounts/${id}/check-status`, {
@@ -248,33 +259,53 @@
         })
         .then(res => res.json())
         .then(data => {
-            // Update badge status di kartu secara dinamis tanpa perlu reload halaman
+            // Update badge status di kartu secara dinamis
             const badge = document.getElementById(`account-status-badge-${id}`);
             const dot = document.getElementById(`account-status-dot-${id}`);
             const text = document.getElementById(`account-status-text-${id}`);
+            const btnRelogin = document.getElementById(`btn-relogin-${id}`);
 
             if (badge && dot && text) {
                 if (data.is_logged_in) {
                     badge.className = "px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 bg-emerald-950 text-emerald-300 border border-emerald-800";
                     dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
                     text.textContent = "TERHUBUNG";
+                    if (btnRelogin) {
+                        btnRelogin.className = "px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-xs font-semibold rounded-xl border border-indigo-800 transition flex items-center justify-center space-x-1";
+                        btnRelogin.innerHTML = '<i class="fa-solid fa-key"></i><span>Import Sesi</span>';
+                    }
                 } else {
                     badge.className = "px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 bg-red-950 text-red-300 border border-red-800";
                     dot.className = "w-2 h-2 rounded-full bg-red-400";
                     text.textContent = "BELUM LOGIN";
+                    if (btnRelogin) {
+                        btnRelogin.className = "px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl border border-amber-400 shadow-lg animate-pulse transition flex items-center justify-center space-x-1";
+                        btnRelogin.innerHTML = '<i class="fa-solid fa-key"></i><span>🔑 Login Ulang</span>';
+                    }
                 }
             }
 
             if (data.screenshot_url) {
+                const actionButtonHtml = !data.is_logged_in ? `
+                    <div class="pt-2">
+                        <button onclick="Swal.close(); openImportStateModal(${id}, '${accountName}')" 
+                                class="w-full py-2.5 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-key text-sm"></i>
+                            <span>🔑 Klik Di Sini Untuk Login Ulang / Hubungkan Sesi</span>
+                        </button>
+                    </div>
+                ` : '';
+
                 Swal.fire({
                     icon: data.is_logged_in ? 'success' : 'warning',
-                    title: data.is_logged_in ? 'Akun Meta Terhubung & Aktif!' : 'Sesi Belum Login',
+                    title: data.is_logged_in ? 'Akun Meta Terhubung & Aktif!' : '⚠️ Sesi Meta Belum Login',
                     html: `
                         <div class="space-y-3">
                             <p class="text-xs text-indigo-300 font-semibold">${data.message}</p>
                             <div class="border border-gray-700 rounded-xl overflow-hidden shadow-2xl bg-gray-950">
                                 <img src="${data.screenshot_url}?t=${new Date().getTime()}" class="w-full h-auto object-cover max-h-80">
                             </div>
+                            ${actionButtonHtml}
                             <p class="text-[11px] text-gray-400 italic">Tangkapan layar di atas diambil secara real-time dari Meta Business Suite server Anda.</p>
                         </div>
                     `,
@@ -294,7 +325,7 @@
         });
     }
 
-    // Submit Import Sesi State
+    // Submit Import / Login Ulang Sesi State
     document.getElementById('formImportState').addEventListener('submit', function(e) {
         e.preventDefault();
         const id = document.getElementById('importAccountId').value;
@@ -320,10 +351,15 @@
                 const badge = document.getElementById(`account-status-badge-${id}`);
                 const dot = document.getElementById(`account-status-dot-${id}`);
                 const text = document.getElementById(`account-status-text-${id}`);
+                const btnRelogin = document.getElementById(`btn-relogin-${id}`);
                 if (badge && dot && text) {
                     badge.className = "px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 bg-emerald-950 text-emerald-300 border border-emerald-800";
                     dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
                     text.textContent = "TERHUBUNG";
+                    if (btnRelogin) {
+                        btnRelogin.className = "px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-xs font-semibold rounded-xl border border-indigo-800 transition flex items-center justify-center space-x-1";
+                        btnRelogin.innerHTML = '<i class="fa-solid fa-key"></i><span>Import Sesi</span>';
+                    }
                 }
             } else {
                 showAlert('error', 'Gagal Impor', data.message);
