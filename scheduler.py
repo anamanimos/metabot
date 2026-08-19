@@ -479,11 +479,12 @@ def main():
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
-                "--disable-dev-shm-usage"
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-software-rasterizer"
             ]
         )
 
-        # Suntikkan cookies dari state.json ke dalam context secara terpisah
         if storage_state_path:
             try:
                 with open(storage_state_path, "r", encoding="utf-8") as sf:

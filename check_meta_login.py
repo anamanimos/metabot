@@ -6,6 +6,14 @@ import time
 import argparse
 from pathlib import Path
 
+# Force UTF-8 output
+if sys.platform == 'win32':
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 # Set shared Playwright browser path to /var/www/meta.damaijaya.my.id/ms-playwright if available
 shared_browser_dir = Path("/var/www/meta.damaijaya.my.id/ms-playwright")
 if shared_browser_dir.exists():
@@ -46,7 +54,9 @@ def check_login():
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
-                    "--disable-dev-shm-usage"
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--disable-software-rasterizer"
                 ]
             )
 
