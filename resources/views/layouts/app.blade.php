@@ -175,6 +175,35 @@
         let initialCompletedOffset = null;
         let initialFailedOffset = null;
 
+        function showLoading(title, text) {
+            Swal.fire({
+                title: title || 'Memproses...',
+                text: text || 'Mohon tunggu sebentar...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                },
+                customClass: {
+                    popup: 'swal2-popup-dark',
+                    title: 'swal2-title-dark',
+                    htmlContainer: 'swal2-html-dark'
+                }
+            });
+        }
+
+        function showAlert(icon, title, text) {
+            Swal.fire({
+                icon: icon,
+                title: title,
+                text: text,
+                customClass: {
+                    popup: 'swal2-popup-dark',
+                    title: 'swal2-title-dark',
+                    htmlContainer: 'swal2-html-dark'
+                }
+            });
+        }
+
         function showProgressWidget() {
             document.getElementById('botProgressWidget').classList.remove('hidden');
         }
@@ -234,7 +263,6 @@
                         document.getElementById('widgetLatestNote').textContent = data.latest_note;
                     }
 
-                    // Tampilkan Error Box jika ada item batch yang FAILED
                     if (batchFailed > 0 && data.failed_note) {
                         document.getElementById('widgetErrorBox').classList.remove('hidden');
                         document.getElementById('widgetErrorDetail').textContent = `[${data.failed_item}] ${data.failed_note}`;
@@ -268,29 +296,9 @@
             }, 3000);
         }
 
-        // Global Alert Helper
-        function showAlert(icon, title, text) {
-            Swal.fire({
-                icon: icon,
-                title: title,
-                text: text,
-                customClass: {
-                    popup: 'swal2-popup-dark',
-                    title: 'swal2-title-dark',
-                    htmlContainer: 'swal2-html-dark'
-                }
-            });
-        }
-
         // Action: Ambil Portofolio Meta
         document.getElementById('btnFetchPortfolios')?.addEventListener('click', function() {
-            Swal.fire({
-                title: 'Memindai Aset Meta...',
-                text: 'Membuka bot Chromium untuk mengambil Aset Bisnis Meta...',
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading(),
-                customClass: { popup: 'swal2-popup-dark', title: 'swal2-title-dark', htmlContainer: 'swal2-html-dark' }
-            });
+            showLoading('Memindai Aset Meta...', 'Membuka bot Chromium untuk mengambil Aset Bisnis Meta...');
 
             fetch("{{ route('portfolios.fetch') }}", {
                 method: 'POST',
