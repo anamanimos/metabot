@@ -470,24 +470,30 @@ def main():
 
     storage_state_file = Path("state.json")
     storage_state_path = str(storage_state_file) if storage_state_file.exists() else None
-    if storage_state_path:
-        log(f"Memuat status sesi OS-agnostic dari: {storage_state_path}", "INFO")
 
     with sync_playwright() as p:
-        launch_kwargs = {
-            "user_data_dir": user_data_dir,
-            "headless": is_headless,
-            "viewport": {"width": 1280, "height": 900},
-            "args": [
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=is_headless,
+            viewport={"width": 1280, "height": 900},
+            args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
                 "--disable-dev-shm-usage"
             ]
-        }
-        if storage_state_path:
-            launch_kwargs["storage_state"] = storage_state_path
+        )
 
-        context = p.chromium.launch_persistent_context(**launch_kwargs)
+        # Suntikkan cookies dari state.json ke dalam context secara terpisah
+        if storage_state_path:
+            try:
+                with open(storage_state_path, "r", encoding="utf-8") as sf:
+                    state_data = json.load(sf)
+                    if "cookies" in state_data and state_data["cookies"]:
+                        context.add_cookies(state_data["cookies"])
+                        log(f"Berhasil meng-impor {len(state_data['cookies'])} cookies sesi dari {storage_state_path}!", "SUCCESS")
+            except Exception as e:
+                log(f"Catatan imbalan cookies state.json: {e}", "WARN")
+
         page = context.pages[0] if context.pages else context.new_page()
 
         success_count = 0
