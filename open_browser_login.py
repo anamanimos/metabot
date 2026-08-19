@@ -85,24 +85,25 @@ def open_visual_browser():
                 pass
 
             is_logged_in = False
-            # Tunggu hingga 10 menit (300 iterasi x 2 detik = 600 detik) untuk memberi cukup waktu menyelesaikan 2FA
             for _ in range(300):
                 try:
                     time.sleep(2)
                     current_url = page.url.lower()
 
-                    # 1. Cek apakah masih dalam halaman login / 2FA / checkpoint / verifikasi keamanan
-                    is_in_checkpoint_or_2fa = (
-                        "checkpoint" in current_url or
-                        "two_step" in current_url or
-                        "two_factor" in current_url or
-                        "login" in current_url or
-                        "auth" in current_url or
-                        "identity" in current_url or
-                        "challenge" in current_url
+                    # Stripping query params (sesudah '?') agar biz_login_source tidak dikira halaman login
+                    url_path = current_url.split("?")[0]
+
+                    is_in_login_path = (
+                        "facebook.com/login" in url_path or
+                        "/login" in url_path or
+                        "/loginpage" in url_path or
+                        "/checkpoint" in url_path or
+                        "/two_factor" in url_path or
+                        "/two_step" in url_path or
+                        "/auth" in url_path or
+                        "/identity" in url_path
                     )
 
-                    # 2. Cek apakah input 2FA / kode OTP / Passkey masih ada di halaman
                     has_2fa_input = False
                     try:
                         if page.locator("input[name='approvals_code']").count() > 0 or \
@@ -114,24 +115,20 @@ def open_visual_browser():
                     except Exception:
                         pass
 
-                    # 3. Cek keberadaan elemen dashboard Meta Business Suite yang sah (seperti Kotak Masuk / Pengelola Iklan)
                     has_dashboard_element = False
                     try:
                         if page.locator("text='Pengelola Iklan'").count() > 0 or \
                            page.locator("text='Kotak Masuk'").count() > 0 or \
-                           page.locator("text='Konten'").count() > 0 or \
+                           page.locator("text='Beranda'").count() > 0 or \
+                           page.locator("text='Notifikasi'").count() > 0 or \
                            page.locator("text='Monetisasi'").count() > 0:
                             has_dashboard_element = True
                     except Exception:
                         pass
 
-                    # HANYA anggap login selesai 100% jika:
-                    # - Tidak dalam checkpoint / 2FA
-                    # - Tidak ada input 2FA
-                    # - Dan elemen dashboard sah sudah terlihat ATAU URL sudah murni di business.facebook.com/latest/home tanpa parameter login
-                    if not is_in_checkpoint_or_2fa and not has_2fa_input and (has_dashboard_element or ("business.facebook.com/latest/home" in current_url and "login" not in current_url)):
-                        # Tunggu 3 detik tambahan untuk memastikan cookie sesi tersimpan stabil setelah 2FA
-                        time.sleep(3)
+                    # Jika elemen dashboard sudah aktif DAN tidak di halaman login/2FA
+                    if (has_dashboard_element or ("business.facebook.com/latest/home" in url_path)) and not is_in_login_path and not has_2fa_input:
+                        time.sleep(2)
                         is_logged_in = True
                         break
                 except Exception:
@@ -146,8 +143,8 @@ def open_visual_browser():
                     json.dump(state, sf, indent=2, ensure_ascii=False)
 
                 try:
-                    page.evaluate("alert('✅ LOGIN & VERIFIKASI 2FA BERHASIL 100%! Sesi otentikasi telah disimpan secara permanen.')")
-                    time.sleep(3)
+                    page.evaluate("alert('✅ LOGIN META BERHASIL 100%! Jendela akan tertutup otomatis dalam 2 detik.')")
+                    time.sleep(2)
                 except Exception:
                     pass
             else:
@@ -164,4 +161,15 @@ def open_visual_browser():
 
 if __name__ == "__main__":
     res = open_visual_browser()
-    print(json.dumps(res))
+    
+    try:
+        os.makedirs("storage/app", exist_ok=True)
+        with open("storage/app/meta_login_result.json", "w", encoding="utf-8") as f:
+            json.dump(res, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+    try:
+        sys.__stdout__.write(json.dumps(res) + "\n")
+    except Exception:
+        pass

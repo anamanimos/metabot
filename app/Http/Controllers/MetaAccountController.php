@@ -117,7 +117,7 @@ class MetaAccountController extends Controller
             $pythonBin = $this->getPythonBinary();
             
             if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                $cmd = "start \"Memindai Aset Meta\" cmd /k \"cd /d \"{$basePath}\" && {$pythonBin} fetch_portfolios.py --user_data={$account->session_folder}\"";
+                $cmd = "start \"Memindai Aset Meta\" cmd /c \"cd /d \"{$basePath}\" && {$pythonBin} fetch_portfolios.py --user_data={$account->session_folder}\"";
                 pclose(popen($cmd, "r"));
             } else {
                 $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
@@ -161,9 +161,9 @@ class MetaAccountController extends Controller
             $pythonBin = $this->getPythonBinary();
 
             if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                $cmd = "start \"Login Meta Visual Browser\" cmd /k \"cd /d \"{$basePath}\" && {$pythonBin} open_browser_login.py --user_data={$account->session_folder}\"";
+                $cmd = "start \"Login Meta Visual Browser\" cmd /c \"cd /d \"{$basePath}\" && {$pythonBin} open_browser_login.py --user_data={$account->session_folder}\"";
                 pclose(popen($cmd, "r"));
-                $msg = "Jendela browser Chromium visual telah dibuka di layar komputer Anda! Silakan lakukan login / verifikasi Passkey di browser tersebut.";
+                $msg = "Jendela browser Chromium visual telah dibuka! Silakan lakukan login di browser tersebut; jendela browser dan CMD akan tertutup otomatis setelah login selesai.";
                 $success = true;
             } else {
                 $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
