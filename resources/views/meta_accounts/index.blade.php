@@ -38,8 +38,8 @@
                         <!-- Login Status Badge -->
                         <span id="account-status-badge-{{ $account->id }}" 
                               class="px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 {{ $account->status === 'active' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-red-950 text-red-300 border border-red-800' }}">
-                            <span class="w-2 h-2 rounded-full {{ $account->status === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-red-400' }}"></span>
-                            <span>{{ $account->status === 'active' ? 'TERHUBUNG' : 'BELUM LOGIN' }}</span>
+                            <span class="w-2 h-2 rounded-full {{ $account->status === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-red-400' }}" id="account-status-dot-{{ $account->id }}"></span>
+                            <span id="account-status-text-{{ $account->id }}">{{ $account->status === 'active' ? 'TERHUBUNG' : 'BELUM LOGIN' }}</span>
                         </span>
                     </div>
 
@@ -225,9 +225,9 @@
             if (data.success) {
                 showAlert('success', 'Berhasil Dipindai!', data.message);
                 if (data.count !== undefined) {
-                    document.getElementById(`account-portfolio-count-${id}`).textContent = data.count;
+                    const el = document.getElementById(`account-portfolio-count-${id}`);
+                    if (el) el.textContent = data.count;
                 }
-                setTimeout(() => window.location.reload(), 1500);
             } else {
                 showAlert('info', 'Info Pemindaian', data.message);
             }
@@ -248,6 +248,23 @@
         })
         .then(res => res.json())
         .then(data => {
+            // Update badge status di kartu secara dinamis tanpa perlu reload halaman
+            const badge = document.getElementById(`account-status-badge-${id}`);
+            const dot = document.getElementById(`account-status-dot-${id}`);
+            const text = document.getElementById(`account-status-text-${id}`);
+
+            if (badge && dot && text) {
+                if (data.is_logged_in) {
+                    badge.className = "px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 bg-emerald-950 text-emerald-300 border border-emerald-800";
+                    dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+                    text.textContent = "TERHUBUNG";
+                } else {
+                    badge.className = "px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 bg-red-950 text-red-300 border border-red-800";
+                    dot.className = "w-2 h-2 rounded-full bg-red-400";
+                    text.textContent = "BELUM LOGIN";
+                }
+            }
+
             if (data.screenshot_url) {
                 Swal.fire({
                     icon: data.is_logged_in ? 'success' : 'warning',
@@ -261,18 +278,15 @@
                             <p class="text-[11px] text-gray-400 italic">Tangkapan layar di atas diambil secara real-time dari Meta Business Suite server Anda.</p>
                         </div>
                     `,
-                    confirmButtonText: 'Tutup & Perbarui Status',
+                    confirmButtonText: 'Tutup',
                     customClass: {
                         popup: 'swal2-popup-dark max-w-2xl',
                         title: 'swal2-title-dark',
                         htmlContainer: 'swal2-html-dark'
                     }
-                }).then(() => {
-                    window.location.reload();
                 });
             } else {
                 showAlert(data.is_logged_in ? 'success' : 'warning', data.is_logged_in ? 'Akun Terhubung!' : 'Belum Login', data.message);
-                setTimeout(() => window.location.reload(), 1500);
             }
         })
         .catch(err => {
@@ -301,7 +315,16 @@
             if (data.success) {
                 showAlert('success', 'Berhasil Terhubung!', data.message);
                 closeImportStateModal();
-                setTimeout(() => window.location.reload(), 1500);
+
+                // Update status badge di DOM secara dinamis
+                const badge = document.getElementById(`account-status-badge-${id}`);
+                const dot = document.getElementById(`account-status-dot-${id}`);
+                const text = document.getElementById(`account-status-text-${id}`);
+                if (badge && dot && text) {
+                    badge.className = "px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 bg-emerald-950 text-emerald-300 border border-emerald-800";
+                    dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+                    text.textContent = "TERHUBUNG";
+                }
             } else {
                 showAlert('error', 'Gagal Impor', data.message);
             }
