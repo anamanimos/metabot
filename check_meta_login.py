@@ -139,6 +139,7 @@ def check_login():
             time.sleep(5)
 
             current_url = page.url
+            current_url_lower = current_url.lower()
             result["url"] = current_url
 
             page.screenshot(path=output_path, full_page=False)
@@ -147,19 +148,35 @@ def check_login():
                 relative_screenshot = "/" + relative_screenshot
             result["screenshot"] = relative_screenshot
 
-            # Deteksi elemen dashboard Meta Business Suite (Beranda / Notifikasi / Pengelola Iklan / Home)
+            # 1. Cek secara eksplisit apakah halaman yang terbuka adalah halaman login Meta
+            is_login_page = False
+            if "login" in current_url_lower or "loginpage" in current_url_lower or "checkpoint" in current_url_lower or "two_step" in current_url_lower:
+                is_login_page = True
+
+            try:
+                if page.locator("text='Mulai dengan fitur bisnis'").count() > 0 or \
+                   page.locator("text='Lanjutkan dengan Facebook'").count() > 0 or \
+                   page.locator("text='Lanjutkan dengan Instagram'").count() > 0 or \
+                   page.locator("text='Log In'").count() > 0 or \
+                   page.locator("input[name='email']").count() > 0 or \
+                   page.locator("input[name='pass']").count() > 0:
+                    is_login_page = True
+            except Exception:
+                pass
+
+            # 2. Cek elemen dashboard Meta Business Suite yang sah (WAJIB ADA SAAT TERHUBUNG)
             has_dashboard = False
             try:
-                if page.locator("text='Beranda'").count() > 0 or \
-                   page.locator("text='Home'").count() > 0 or \
+                if page.locator("text='Pengelola Iklan'").count() > 0 or \
+                   page.locator("text='Kotak Masuk'").count() > 0 or \
                    page.locator("text='Notifikasi'").count() > 0 or \
-                   page.locator("text='Pengelola Iklan'").count() > 0 or \
-                   page.locator("text='Konten'").count() > 0:
+                   page.locator("text='Monetisasi'").count() > 0:
                     has_dashboard = True
             except Exception:
                 pass
 
-            if (has_dashboard or "business.facebook.com/latest/home" in current_url) and "facebook.com/login" not in current_url:
+            # HANYA dinyatakan logged_in = True bila elemen dashboard ada DAN bukan halaman login
+            if has_dashboard and not is_login_page:
                 result["logged_in"] = True
                 result["message"] = "Sesi Meta Business Suite Terverifikasi Aktif & Terhubung!"
             else:
@@ -177,7 +194,7 @@ def check_login():
 if __name__ == "__main__":
     res = check_login()
     
-    # Simpan hasil pengecekan ke file JSON fisik untuk jaminan ketersediaan 100%
+    # Simpan hasil ke file fisik JSON
     try:
         os.makedirs("storage/app", exist_ok=True)
         with open("storage/app/meta_check_result.json", "w", encoding="utf-8") as f:
