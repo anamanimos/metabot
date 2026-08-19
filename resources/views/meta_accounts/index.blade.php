@@ -13,7 +13,7 @@
                 <span>Akun Meta (Facebook / Instagram)</span>
             </h1>
             <p class="text-sm text-gray-400 mt-1">
-                Kelola status sesi akun Meta, pindaian portofolio per akun, & Login Langsung via Web UI.
+                Kelola status sesi akun Meta, pindaian portofolio per akun, & Login Tab Manual 1-Klik.
             </p>
         </div>
 
@@ -142,13 +142,13 @@
     </div>
 </div>
 
-<!-- Modal Login Langsung / Import Sesi Cookie state.json -->
+<!-- Modal Login Tab Manual / Import Sesi Cookie state.json -->
 <div id="modalImportState" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="card-dark w-full max-w-lg rounded-2xl shadow-2xl border border-gray-800 p-6 space-y-5 relative">
         <div class="flex items-center justify-between border-b border-gray-800 pb-3">
             <h3 class="text-lg font-bold text-white flex items-center space-x-2">
                 <i class="fa-solid fa-key text-amber-400"></i>
-                <span>🔑 Login / Hubungkan Sesi (<span id="modalImportAccountTitle" class="text-amber-300"></span>)</span>
+                <span>🔑 Hubungkan Sesi Meta (<span id="modalImportAccountTitle" class="text-amber-300"></span>)</span>
             </h3>
             <button onclick="closeImportStateModal()" class="text-gray-400 hover:text-white transition">
                 <i class="fa-solid fa-xmark text-lg"></i>
@@ -157,18 +157,58 @@
 
         <!-- Navigation Sub-Tabs -->
         <div class="flex border-b border-gray-800 text-xs font-semibold">
-            <button type="button" onclick="switchLoginTab('direct')" id="tabBtnDirect" class="py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2">
+            <button type="button" onclick="switchLoginTab('openTab')" id="tabBtnOpenTab" class="py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2">
+                <i class="fa-solid fa-up-right-from-square"></i>
+                <span>Metode 1: Buka Tab Facebook & Connect</span>
+            </button>
+            <button type="button" onclick="switchLoginTab('direct')" id="tabBtnDirect" class="py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2">
                 <i class="fa-solid fa-right-to-bracket"></i>
-                <span>Metode 1: Login Langsung Form Web</span>
+                <span>Metode 2: Form Login Web</span>
             </button>
             <button type="button" onclick="switchLoginTab('file')" id="tabBtnFile" class="py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2">
                 <i class="fa-solid fa-file-import"></i>
-                <span>Metode 2: Unggah state.json</span>
+                <span>Metode 3: state.json</span>
             </button>
         </div>
 
-        <!-- TAB 1: FORM LOGIN LANGSUNG VIA WEB UI -->
-        <form id="formDirectLogin" class="space-y-4">
+        <!-- TAB 1: BUKA TAB FACEBOOK LOGIN & CONNECT 1-KLIK -->
+        <div id="tabOpenTab" class="space-y-4">
+            <div class="bg-indigo-950/60 border border-indigo-800 p-4 rounded-xl text-xs text-indigo-200 space-y-3">
+                <p class="font-bold flex items-center space-x-2 text-indigo-300 text-sm">
+                    <i class="fa-solid fa-arrow-pointer text-amber-400"></i>
+                    <span>Langkah Mudah Login Manual via Tab Browser:</span>
+                </p>
+                <ol class="list-decimal list-inside space-y-2 text-[11px] text-indigo-200 leading-relaxed">
+                    <li>Klik tombol hijau <b>"Buka Tab Facebook Login"</b> di bawah untuk membuka Facebook di tab baru browser Anda.</li>
+                    <li>Lakukan login manual ke akun Meta / Facebook Anda seperti biasa di tab baru tersebut.</li>
+                    <li>Setelah login di Facebook, seret tombol <b>"📌 Hubungkan Sesi"</b> ke Bookmark Bar browser Anda, atau klik tombol <b>"Salin Script 1-Klik"</b> dan tempelkan di Console/Address Bar Facebook. Sesi akan langsung terhubung!</li>
+                </ol>
+            </div>
+
+            <div class="space-y-2 pt-2">
+                <a href="https://business.facebook.com/latest/home" target="_blank" 
+                   class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-up-right-from-square"></i>
+                    <span>1. Buka Tab Facebook Business Suite (Login Manual)</span>
+                </a>
+
+                <!-- Bookmarklet Link Drag Button -->
+                <a id="bookmarkletLink" href="#" onclick="alert('Seret (drag) tombol ini ke Bookmark Bar browser Anda, lalu klik tombol ini saat membuka tab Facebook!')"
+                   class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs shadow transition flex items-center justify-center space-x-2 cursor-grab">
+                    <i class="fa-solid fa-bookmark"></i>
+                    <span>📌 2. Drag Tombol Ini ke Bookmark Bar (Hubungkan Sesi)</span>
+                </a>
+
+                <button onclick="copyBookmarkletScript()" 
+                        class="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded-xl text-xs border border-gray-700 transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-copy text-indigo-400"></i>
+                    <span>Salin Kode Script Hubungkan Sesi 1-Klik</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB 2: FORM LOGIN LANGSUNG VIA WEB UI -->
+        <form id="formDirectLogin" class="space-y-4 hidden">
             <input type="hidden" id="directLoginAccountId" name="account_id">
             
             <div class="bg-indigo-950/50 border border-indigo-800 p-3 rounded-xl text-xs text-indigo-200 space-y-1">
@@ -210,7 +250,7 @@
             </div>
         </form>
 
-        <!-- TAB 2: UNGGAH FILE STATE.JSON -->
+        <!-- TAB 3: UNGGAH FILE STATE.JSON -->
         <form id="formImportState" class="space-y-4 hidden" enctype="multipart/form-data">
             <input type="hidden" id="importAccountId" name="account_id">
 
@@ -247,6 +287,8 @@
 
 @section('scripts')
 <script>
+    let currentModalAccountId = 1;
+
     function openNewAccountModal() {
         document.getElementById('modalNewAccount').classList.remove('hidden');
     }
@@ -256,37 +298,65 @@
     }
 
     function switchLoginTab(tab) {
+        const btnOpenTab = document.getElementById('tabBtnOpenTab');
         const btnDirect = document.getElementById('tabBtnDirect');
         const btnFile = document.getElementById('tabBtnFile');
+        
+        const tabOpenTab = document.getElementById('tabOpenTab');
         const formDirect = document.getElementById('formDirectLogin');
         const formFile = document.getElementById('formImportState');
 
-        if (tab === 'direct') {
+        btnOpenTab.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
+        btnDirect.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
+        btnFile.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
+
+        tabOpenTab.classList.add('hidden');
+        formDirect.classList.add('hidden');
+        formFile.classList.add('hidden');
+
+        if (tab === 'openTab') {
+            btnOpenTab.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
+            tabOpenTab.classList.remove('hidden');
+        } else if (tab === 'direct') {
             btnDirect.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
-            btnFile.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
             formDirect.classList.remove('hidden');
-            formFile.classList.add('hidden');
         } else {
             btnFile.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
-            btnDirect.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
             formFile.classList.remove('hidden');
-            formDirect.classList.add('hidden');
         }
     }
 
+    function updateBookmarkletHref(id) {
+        const scriptCode = `javascript:(function(){var cookies=document.cookie.split(';').map(function(c){var p=c.trim().split('=');return{name:p[0],value:p.slice(1).join('='),domain:'.facebook.com',path:'/'};});var stateData={cookies:cookies,origins:[]};var form=document.createElement('form');form.method='POST';form.action='https://meta.damaijaya.my.id/meta-accounts/${id}/import-state';var input=document.createElement('input');input.type='hidden';input.name='state_json';input.value=JSON.stringify(stateData);form.appendChild(input);document.body.appendChild(form);form.submit();})();`;
+        document.getElementById('bookmarkletLink').href = scriptCode;
+    }
+
+    function copyBookmarkletScript() {
+        const id = currentModalAccountId;
+        const scriptCode = `javascript:(function(){var cookies=document.cookie.split(';').map(function(c){var p=c.trim().split('=');return{name:p[0],value:p.slice(1).join('='),domain:'.facebook.com',path:'/'};});var stateData={cookies:cookies,origins:[]};var form=document.createElement('form');form.method='POST';form.action='https://meta.damaijaya.my.id/meta-accounts/${id}/import-state';var input=document.createElement('input');input.type='hidden';input.name='state_json';input.value=JSON.stringify(stateData);form.appendChild(input);document.body.appendChild(form);form.submit();})();`;
+        
+        navigator.clipboard.writeText(scriptCode).then(() => {
+            showAlert('success', 'Kode Berhasil Disalin!', 'Tempelkan kode ini di Console (F12) tab Facebook atau simpan sebagai Bookmark di browser Anda.');
+        }).catch(err => {
+            showAlert('error', 'Gagal Menyalin', err.message);
+        });
+    }
+
     function openImportStateModal(id, accountName) {
+        currentModalAccountId = id;
         document.getElementById('importAccountId').value = id;
         document.getElementById('directLoginAccountId').value = id;
         document.getElementById('modalImportAccountTitle').textContent = accountName || '';
+        updateBookmarkletHref(id);
         document.getElementById('modalImportState').classList.remove('hidden');
-        switchLoginTab('direct');
+        switchLoginTab('openTab');
     }
 
     function closeImportStateModal() {
         document.getElementById('modalImportState').classList.add('hidden');
     }
 
-    // Submit Direct Web UI Login (Email & Password)
+    // Submit Direct Web UI Login
     document.getElementById('formDirectLogin').addEventListener('submit', function(e) {
         e.preventDefault();
         const id = document.getElementById('directLoginAccountId').value;
@@ -308,7 +378,6 @@
                 showAlert('success', 'Berhasil Login!', data.message);
                 closeImportStateModal();
 
-                // Update status badge di DOM secara dinamis
                 const badge = document.getElementById(`account-status-badge-${id}`);
                 const dot = document.getElementById(`account-status-dot-${id}`);
                 const text = document.getElementById(`account-status-text-${id}`);
@@ -402,7 +471,7 @@
                         <button onclick="Swal.close(); openImportStateModal(${id}, '${accountName}')" 
                                 class="w-full py-2.5 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
                             <i class="fa-solid fa-key text-sm"></i>
-                            <span>🔑 Klik Di Sini Untuk Login Ulang Langsung</span>
+                            <span>🔑 Klik Di Sini Untuk Buka Tab Facebook & Connect Sesi</span>
                         </button>
                     </div>
                 ` : '';
