@@ -181,7 +181,7 @@
                 <ol class="list-decimal list-inside space-y-2 text-[11px] text-indigo-200 leading-relaxed">
                     <li>Klik tombol hijau <b>"Buka Tab Facebook Login"</b> di bawah untuk membuka Facebook di tab baru browser Anda.</li>
                     <li>Lakukan login manual ke akun Meta / Facebook Anda seperti biasa di tab baru tersebut.</li>
-                    <li>Setelah login di Facebook, seret tombol <b>"📌 Hubungkan Sesi"</b> ke Bookmark Bar browser Anda, atau klik tombol <b>"Salin Script 1-Klik"</b> dan tempelkan di Console/Address Bar Facebook. Sesi akan langsung terhubung!</li>
+                    <li>Setelah login di Facebook, klik <b>"Salin Script 1-Klik"</b> di bawah ini, lalu buka Console DevTools (F12) pada tab Facebook dan paste & tekan Enter. Sesi akan otomatis terhubung tanpa error 419!</li>
                 </ol>
             </div>
 
@@ -200,9 +200,9 @@
                 </a>
 
                 <button onclick="copyBookmarkletScript()" 
-                        class="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded-xl text-xs border border-gray-700 transition flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-copy text-indigo-400"></i>
-                    <span>Salin Kode Script Hubungkan Sesi 1-Klik</span>
+                        class="w-full py-2 bg-indigo-950 hover:bg-indigo-900 text-indigo-200 font-bold rounded-xl text-xs border border-indigo-700 transition flex items-center justify-center space-x-2 shadow">
+                    <i class="fa-solid fa-copy text-amber-400"></i>
+                    <span>Salin Script 1-Klik (Async Fetch Tanpa Error 419)</span>
                 </button>
             </div>
         </div>
@@ -327,16 +327,16 @@
     }
 
     function updateBookmarkletHref(id) {
-        const scriptCode = `javascript:(function(){var cookies=document.cookie.split(';').map(function(c){var p=c.trim().split('=');return{name:p[0],value:p.slice(1).join('='),domain:'.facebook.com',path:'/'};});var stateData={cookies:cookies,origins:[]};var form=document.createElement('form');form.method='POST';form.action='https://meta.damaijaya.my.id/meta-accounts/${id}/import-state';var input=document.createElement('input');input.type='hidden';input.name='state_json';input.value=JSON.stringify(stateData);form.appendChild(input);document.body.appendChild(form);form.submit();})();`;
+        const scriptCode = `javascript:(function(){var cookies=document.cookie.split(';').map(function(c){var p=c.trim().split('=');return{name:p[0],value:p.slice(1).join('='),domain:'.facebook.com',path:'/'};});var stateData={cookies:cookies,origins:[]};var formData=new FormData();formData.append('state_json',JSON.stringify(stateData));fetch('https://meta.damaijaya.my.id/meta-accounts/${id}/import-state',{method:'POST',body:formData}).then(function(res){return res.json();}).then(function(data){if(data.success){alert('✅ SESI BERHASIL TERHUBUNG! Sesi Meta Account Anda telah aktif.');}else{alert('❌ Gagal: '+data.message);}}).catch(function(err){alert('❌ Error: '+err.message);});})();`;
         document.getElementById('bookmarkletLink').href = scriptCode;
     }
 
     function copyBookmarkletScript() {
         const id = currentModalAccountId;
-        const scriptCode = `javascript:(function(){var cookies=document.cookie.split(';').map(function(c){var p=c.trim().split('=');return{name:p[0],value:p.slice(1).join('='),domain:'.facebook.com',path:'/'};});var stateData={cookies:cookies,origins:[]};var form=document.createElement('form');form.method='POST';form.action='https://meta.damaijaya.my.id/meta-accounts/${id}/import-state';var input=document.createElement('input');input.type='hidden';input.name='state_json';input.value=JSON.stringify(stateData);form.appendChild(input);document.body.appendChild(form);form.submit();})();`;
+        const scriptCode = `javascript:(function(){var cookies=document.cookie.split(';').map(function(c){var p=c.trim().split('=');return{name:p[0],value:p.slice(1).join('='),domain:'.facebook.com',path:'/'};});var stateData={cookies:cookies,origins:[]};var formData=new FormData();formData.append('state_json',JSON.stringify(stateData));fetch('https://meta.damaijaya.my.id/meta-accounts/${id}/import-state',{method:'POST',body:formData}).then(function(res){return res.json();}).then(function(data){if(data.success){alert('✅ SESI BERHASIL TERHUBUNG! Sesi Meta Account Anda telah aktif.');}else{alert('❌ Gagal: '+data.message);}}).catch(function(err){alert('❌ Error: '+err.message);});})();`;
         
         navigator.clipboard.writeText(scriptCode).then(() => {
-            showAlert('success', 'Kode Berhasil Disalin!', 'Tempelkan kode ini di Console (F12) tab Facebook atau simpan sebagai Bookmark di browser Anda.');
+            showAlert('success', 'Kode Async Berhasil Disalin!', 'Buka Console (F12) pada tab Facebook Anda, lalu paste & tekan Enter. Sesi akan otomatis terhubung tanpa error 419!');
         }).catch(err => {
             showAlert('error', 'Gagal Menyalin', err.message);
         });
