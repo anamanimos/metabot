@@ -13,7 +13,7 @@
                 <span>Akun Meta (Facebook / Instagram)</span>
             </h1>
             <p class="text-sm text-gray-400 mt-1">
-                Kelola status sesi login akun Meta & impor berkas otentikasi lintas-platform (`state.json`).
+                Kelola status sesi login akun Meta, pindaian portofolio per akun, & impor berkas sesi (`state.json`).
             </p>
         </div>
 
@@ -58,7 +58,7 @@
                     <div class="pt-2 border-t border-gray-800 grid grid-cols-2 gap-2 text-xs text-gray-400">
                         <div>
                             <span>Aset Bisnis:</span>
-                            <p class="font-bold text-white mt-0.5"><i class="fa-solid fa-briefcase text-indigo-400 mr-1"></i>{{ $account->portfolios_count }} Aset</p>
+                            <p class="font-bold text-white mt-0.5"><i class="fa-solid fa-briefcase text-indigo-400 mr-1"></i><span id="account-portfolio-count-{{ $account->id }}">{{ $account->portfolios_count }}</span> Aset</p>
                         </div>
                         <div>
                             <span>Project Terhubung:</span>
@@ -69,15 +69,22 @@
 
                 <!-- Card Actions Area -->
                 <div class="pt-4 border-t border-gray-800 space-y-2">
+                    <!-- Tombol Utama Ambil Portofolio Khusus Akun Ini -->
+                    <button onclick="fetchAccountPortfolios({{ $account->id }}, '{{ $account->account_name }}')" 
+                            class="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Ambil Portofolio Akun Ini</span>
+                    </button>
+
                     <div class="grid grid-cols-2 gap-2">
                         <button onclick="checkAccountStatus({{ $account->id }})" 
-                                class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold rounded-xl border border-gray-700 transition flex items-center justify-center space-x-1">
+                                class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold rounded-xl border border-gray-700 transition flex items-center justify-center space-x-1">
                             <i class="fa-solid fa-rotate text-indigo-400"></i>
                             <span>Cek Status</span>
                         </button>
 
                         <button onclick="openImportStateModal({{ $account->id }}, '{{ $account->account_name }}')" 
-                                class="px-3 py-2 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-xs font-semibold rounded-xl border border-indigo-800 transition flex items-center justify-center space-x-1">
+                                class="px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-xs font-semibold rounded-xl border border-indigo-800 transition flex items-center justify-center space-x-1">
                             <i class="fa-solid fa-key"></i>
                             <span>Import Sesi</span>
                         </button>
@@ -199,6 +206,35 @@
 
     function closeImportStateModal() {
         document.getElementById('modalImportState').classList.add('hidden');
+    }
+
+    // Ambil Portofolio Khusus Per Akun Meta
+    function fetchAccountPortfolios(id, accountName) {
+        showLoading('Memindai Portofolio...', `Membuka bot Chromium untuk memindai Aset Bisnis akun '${accountName}'...`);
+
+        fetch(`/meta-accounts/${id}/fetch-portfolios`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Berhasil Dipindai!', data.message);
+                if (data.count !== undefined) {
+                    document.getElementById(`account-portfolio-count-${id}`).textContent = data.count;
+                }
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('info', 'Info Pemindaian', data.message);
+            }
+        })
+        .catch(err => {
+            showAlert('error', 'Kesalahan Sistem', err.message || 'Gagal memindai portofolio.');
+        });
     }
 
     // Cek Status Login Akun Live

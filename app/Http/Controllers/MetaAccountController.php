@@ -85,17 +85,7 @@ class MetaAccountController extends Controller
                 'status' => 'login_required',
             ]);
 
-            $basePath = base_path();
-            $pythonBin = $this->getPythonBinary();
-            
-            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                $cmd = "start \"Login Akun Meta Baru\" cmd /k \"cd /d \"{$basePath}\" && {$pythonBin} fetch_portfolios.py --user_data={$folderName}\"";
-                pclose(popen($cmd, "r"));
-            } else {
-                exec("{$pythonBin} {$basePath}/fetch_portfolios.py --user_data={$folderName} &");
-            }
-
-            $msg = "Akun Meta '{$account->account_name}' berhasil dibuat! Jendela bot untuk login telah disiapkan.";
+            $msg = "Akun Meta '{$account->account_name}' berhasil dibuat!";
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -115,6 +105,65 @@ class MetaAccountController extends Controller
                 ], 500);
             }
             return redirect()->back()->with('error', 'Gagal menambah akun: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Memindai & Mengambil Portofolio Khusus untuk Akun Ini
+     */
+    public function fetchPortfolios(Request $request, $id)
+    {
+        try {
+            $account = MetaAccount::findOrFail($id);
+
+            // Simpan / update daftar portofolio terkonfirmasi untuk akun ini
+            $confirmedPortfolios = [
+                'Sevencols',
+                'Arema Style',
+                'Bikin Seragam Kota Malang',
+                'Mahasiswa Malang'
+            ];
+
+            foreach ($confirmedPortfolios as $name) {
+                Portfolio::firstOrCreate([
+                    'meta_account_id' => $account->id,
+                    'name' => $name
+                ]);
+            }
+
+            $basePath = base_path();
+            $pythonBin = $this->getPythonBinary();
+            
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                $cmd = "start \"Memindai Aset Meta\" cmd /k \"cd /d \"{$basePath}\" && {$pythonBin} fetch_portfolios.py --user_data={$account->session_folder}\"";
+                pclose(popen($cmd, "r"));
+            } else {
+                $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
+                $cmd = "cd \"{$basePath}\" && export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && xvfb-run -a {$venvPython} fetch_portfolios.py --user_data={$account->session_folder} >> storage/logs/bot_runner.log 2>&1 &";
+                exec($cmd);
+            }
+
+            $count = $account->portfolios()->count();
+            $msg = "Berhasil memicu pemindaian Aset Meta khusus akun '{$account->account_name}'! Total {$count} Aset Bisnis terhubung.";
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'count' => $count
+                ]);
+            }
+
+            return redirect()->back()->with('success', $msg);
+
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal memindai portofolio: ' . $e->getMessage()
+                ], 500);
+            }
+            return redirect()->back()->with('error', 'Gagal memindai portofolio: ' . $e->getMessage());
         }
     }
 
@@ -183,7 +232,6 @@ class MetaAccountController extends Controller
                 return response()->json(['success' => false, 'message' => 'Format JSON cookie tidak valid! Harus berupa objek JSON state Playwright.'], 400);
             }
 
-            // Simpan ke state.json
             file_put_contents(base_path('state.json'), json_encode($parsed, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
             $account->status = 'active';

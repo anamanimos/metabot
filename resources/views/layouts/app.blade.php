@@ -82,12 +82,6 @@
 
                 <!-- Action Header Buttons -->
                 <div class="flex items-center space-x-3">
-                    <button id="btnFetchPortfolios" 
-                            class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition flex items-center space-x-2 shadow">
-                        <i class="fa-solid fa-arrows-rotate text-indigo-400"></i>
-                        <span>Ambil Portofolio</span>
-                    </button>
-
                     <button id="btnSyncRunBot" 
                             class="px-4 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md transition flex items-center space-x-2">
                         <i class="fa-solid fa-paper-plane"></i>
@@ -295,32 +289,6 @@
                 });
             }, 3000);
         }
-
-        // Action: Ambil Portofolio Meta
-        document.getElementById('btnFetchPortfolios')?.addEventListener('click', function() {
-            showLoading('Memindai Aset Meta...', 'Membuka bot Chromium untuk mengambil Aset Bisnis Meta...');
-
-            fetch("{{ route('portfolios.fetch') }}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert('success', 'Berhasil Dipindai!', data.message);
-                    setTimeout(() => window.location.reload(), 2000);
-                } else {
-                    showAlert('info', 'Info Pemindaian', data.message);
-                }
-            })
-            .catch(err => {
-                showAlert('error', 'Kesalahan Sistem', err.message || 'Gagal memindai portofolio.');
-            });
-        });
 
         // Action: Sync & Jalankan Bot
         document.getElementById('btnSyncRunBot')?.addEventListener('click', function() {
