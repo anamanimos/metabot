@@ -10,6 +10,11 @@ import requests
 from datetime import datetime
 from pathlib import Path
 
+# Set shared Playwright browser path to /var/www/meta.damaijaya.my.id/ms-playwright if available
+shared_browser_dir = Path("/var/www/meta.damaijaya.my.id/ms-playwright")
+if shared_browser_dir.exists():
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(shared_browser_dir)
+
 # Force UTF-8 output on Windows CMD to prevent UnicodeEncodeError with Emojis
 if sys.platform == 'win32':
     try:
