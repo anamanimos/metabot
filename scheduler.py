@@ -254,7 +254,12 @@ def schedule_story_item(page, item):
     composer_url = "https://business.facebook.com/latest/composer?asset_id=&context_ref=REDESIGN_HOME_PAGE_SCHEDULE_POST_BUTTON&is_story=true&nav_ref=bm_home_schedule_post_button"
     log(f"Membuka Meta Story Composer: {composer_url}", "INFO")
     page.goto(composer_url, wait_until="networkidle")
-    time.sleep(3)
+    time.sleep(4)
+
+    # Deteksi Halaman Login (Jika Belum Sesi Ter-login)
+    if "login" in page.url.lower() or "facebook.com/login" in page.url.lower():
+        log("⚠️ Sesi browser belum login ke Facebook! Silakan login Meta Business Suite di profil user_data terlebih dahulu.", "ERROR")
+        raise RuntimeError("Browser belum ter-login ke Meta Business Suite (Pengalihan ke Halaman Login Terdeteksi). Silakan login terlebih dahulu.")
 
     if portfolio_name:
         try:
@@ -264,6 +269,27 @@ def schedule_story_item(page, item):
 
     log(f"Mengunggah {len(prepared_media_files)} file media ke Story Composer...", "PROCESS")
     
+    # Coba trigger tombol Add Photo / Add Media jika ada
+    add_media_button_selectors = [
+        "text='Add photo'", "text='Tambah foto'",
+        "text='Add photo/video'", "text='Tambah foto/video'",
+        "text='Add Media'", "text='Tambah Media'",
+        "div[role='button']:has-text('Add photo')",
+        "div[role='button']:has-text('Tambah foto')",
+        "button:has-text('Add photo')",
+        "button:has-text('Tambah foto')"
+    ]
+    for btn_sel in add_media_button_selectors:
+        try:
+            b = page.locator(btn_sel).first
+            if b.is_visible(timeout=1500):
+                b.click()
+                log(f"Tombol '{btn_sel}' diklik untuk memicu input upload media.", "INFO")
+                time.sleep(1.5)
+                break
+        except Exception:
+            continue
+
     upload_selectors = [
         "input[type='file'][accept*='image']",
         "input[type='file'][accept*='video']",
@@ -282,6 +308,17 @@ def schedule_story_item(page, item):
         except Exception:
             continue
             
+    if not file_input_found:
+        # Pengecekan fallback dengan locator broad di seluruh frame
+        try:
+            inputs = page.locator("input[type='file']").all()
+            if inputs:
+                inputs[0].set_input_files(prepared_media_files)
+                log("File media disuntikkan via fallback locator input[type='file'] broad.", "SUCCESS")
+                file_input_found = True
+        except Exception as ex:
+            log(f"Fallback input upload file gagal: {ex}", "WARN")
+
     if not file_input_found:
         raise RuntimeError("Input file upload media tidak ditemukan pada Meta Story Composer!")
 
@@ -427,7 +464,6 @@ def main():
 
     log(f"Menggunakan profil sesi browser: {user_data_dir}", "INFO")
 
-    # Deteksi headless secara otomatis: jika tidak ada DISPLAY (di Linux server), gunakan headless=True
     is_headless = False
     if sys.platform != 'win32' and not os.environ.get("DISPLAY"):
         is_headless = True
