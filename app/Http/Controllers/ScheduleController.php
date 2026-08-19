@@ -96,6 +96,7 @@ class ScheduleController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => $msg,
+                        'count' => 0,
                     ]);
                 }
                 return redirect()->back()->with('error', $msg);
@@ -143,7 +144,7 @@ class ScheduleController extends Controller
                 pclose(popen($cmd, "r"));
             } else {
                 $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
-                $cmd = "cd \"{$basePath}\" && xvfb-run -a {$venvPython} scheduler.py > storage/logs/bot_runner.log 2>&1 &";
+                $cmd = "cd \"{$basePath}\" && export PLAYWRIGHT_BROWSERS_PATH=/home/nams/.cache/ms-playwright && xvfb-run -a {$venvPython} scheduler.py > storage/logs/bot_runner.log 2>&1 &";
                 exec($cmd);
             }
 

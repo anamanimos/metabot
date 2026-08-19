@@ -118,7 +118,7 @@
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                     </div>
-                    <span class="text-xs font-bold text-white tracking-wide uppercase">Eksekusi Bot Playwright</span>
+                    <span class="text-xs font-bold text-white tracking-wide uppercase">EKSEKUSI BOT PLAYWRIGHT</span>
                 </div>
                 <button onclick="hideProgressWidget()" class="text-gray-400 hover:text-white transition text-sm">
                     <i class="fa-solid fa-xmark"></i>
@@ -162,7 +162,7 @@
     <script>
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         let progressInterval = null;
-        let initialPendingTotal = 0;
+        let batchInitialPending = 0;
 
         function showProgressWidget() {
             document.getElementById('botProgressWidget').classList.remove('hidden');
@@ -173,9 +173,14 @@
             if (progressInterval) clearInterval(progressInterval);
         }
 
-        function startProgressPolling() {
+        function startProgressPolling(initialCount) {
+            batchInitialPending = initialCount || 0;
             showProgressWidget();
             if (progressInterval) clearInterval(progressInterval);
+
+            // Tampilkan 0% di awal
+            document.getElementById('widgetProgressBar').style.width = '0%';
+            document.getElementById('widgetStatusText').textContent = `🚀 Memproses ${batchInitialPending} item PENDING...`;
 
             progressInterval = setInterval(() => {
                 fetch("{{ route('schedules.executionProgress') }}")
@@ -189,18 +194,17 @@
                         document.getElementById('widgetLatestNote').textContent = data.latest_note;
                     }
 
-                    // Hitung persentase progress
-                    const total = data.completed + data.pending + data.failed;
-                    if (total > 0) {
-                        const done = data.completed + data.failed;
-                        const pct = Math.round((done / total) * 100);
+                    // Hitung progress khusus antrean batch saat ini (bukan total historical completed)
+                    if (batchInitialPending > 0) {
+                        const processedInBatch = Math.max(0, batchInitialPending - data.pending);
+                        const pct = Math.min(100, Math.round((processedInBatch / batchInitialPending) * 100));
                         document.getElementById('widgetProgressBar').style.width = `${pct}%`;
                     }
 
                     if (data.pending > 0) {
                         document.getElementById('widgetStatusText').textContent = `🚀 Memproses antrean... Tersisa ${data.pending} item PENDING`;
                     } else {
-                        document.getElementById('widgetStatusText').textContent = `✅ Seluruh antrean PENDING selesai diproses!`;
+                        document.getElementById('widgetStatusText').textContent = `✅ Seluruh ${batchInitialPending} antrean PENDING selesai diproses!`;
                         document.getElementById('widgetProgressBar').style.width = `100%`;
                         setTimeout(() => {
                             hideProgressWidget();
@@ -274,7 +278,7 @@
             .then(data => {
                 if (data.success) {
                     showAlert('success', 'Bot Berhasil Dicu!', data.message);
-                    startProgressPolling();
+                    startProgressPolling(data.count || 0);
                 } else {
                     showAlert('info', 'Status Antrean Schedule', data.message);
                 }

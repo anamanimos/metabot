@@ -9,6 +9,12 @@ import requests
 from datetime import datetime
 from pathlib import Path
 
+# Set default Playwright browser path to /home/nams/.cache/ms-playwright if not set
+if "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
+    nams_cache = Path("/home/nams/.cache/ms-playwright")
+    if nams_cache.exists():
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(nams_cache)
+
 # Force UTF-8 output on Windows CMD to prevent UnicodeEncodeError with Emojis
 if sys.platform == 'win32':
     try:
@@ -160,7 +166,6 @@ def download_media_if_url(media_path, custom_filename=None, temp_dir="./temp_med
     else:
         local_path = Path(media_path).resolve()
         if not local_path.exists():
-            # Coba cari di public/storage/uploads
             alt_path = Path("public" + media_path if media_path.startswith("/") else "public/" + media_path).resolve()
             if alt_path.exists():
                 return str(alt_path)
@@ -241,26 +246,22 @@ def schedule_story_item(page, item):
     if not media_paths:
         raise ValueError(f"Schedule item [{item_id}] tidak memiliki path media!")
 
-    # 1. Unduh / Siapkan file media lokal
     prepared_media_files = []
     for idx, m_path in enumerate(media_paths):
         local_file = download_media_if_url(m_path, custom_filename=f"{item_id}_{idx+1}.jpg")
         prepared_media_files.append(local_file)
 
-    # 2. Buka Meta Composer Story
     composer_url = "https://business.facebook.com/latest/composer?asset_id=&context_ref=REDESIGN_HOME_PAGE_SCHEDULE_POST_BUTTON&is_story=true&nav_ref=bm_home_schedule_post_button"
     log(f"Membuka Meta Story Composer: {composer_url}", "INFO")
     page.goto(composer_url, wait_until="networkidle")
     time.sleep(3)
 
-    # 3. Pilih Portofolio jika ditentukan
     if portfolio_name:
         try:
             select_portfolio(page, portfolio_name)
         except Exception as e:
             log(f"Gagal memilih portofolio secara otomatis: {e}", "WARN")
 
-    # 4. Upload Media (Single atau Multi-Image)
     log(f"Mengunggah {len(prepared_media_files)} file media ke Story Composer...", "PROCESS")
     
     upload_selectors = [
@@ -287,7 +288,6 @@ def schedule_story_item(page, item):
     log("Menunggu proses preview media selesai diunggah di browser...", "INFO")
     time.sleep(8)
 
-    # 5. Pilih Opsi Penjadwalan (Schedule Option)
     log("Mengaktifkan opsi 'Schedule' (Jadwalkan)...", "PROCESS")
     
     schedule_radio_selectors = [
@@ -316,7 +316,6 @@ def schedule_story_item(page, item):
 
     time.sleep(2)
 
-    # 6. Format Tanggal & Waktu
     if "/" in raw_date:
         formatted_date = raw_date
     else:
@@ -324,7 +323,6 @@ def schedule_story_item(page, item):
 
     log(f"Mengisikan Tanggal Target: '{formatted_date}' & Waktu Target: '{time_str}'...", "PROCESS")
 
-    # Isikan Date Input
     date_inputs = page.locator("input[placeholder*='mm/dd'], input[placeholder*='dd/mm'], input[placeholder*='d/m'], input[value*='/']").all()
     if date_inputs:
         for idx, d_in in enumerate(date_inputs):
@@ -341,7 +339,6 @@ def schedule_story_item(page, item):
 
     time.sleep(1)
 
-    # Isikan Time Input
     time_inputs = page.locator("input[placeholder*='hh:mm'], input[placeholder*='Jam'], input[value*=':']").all()
     if time_inputs:
         for idx, t_in in enumerate(time_inputs):
@@ -358,7 +355,6 @@ def schedule_story_item(page, item):
 
     time.sleep(3)
 
-    # 7. Tekan Tombol Schedule (Jadwalkan) Final
     log("Mencari dan menekan tombol 'Schedule' / 'Jadwalkan' final...", "PROCESS")
     
     schedule_btn_selectors = [
@@ -391,7 +387,6 @@ def schedule_story_item(page, item):
     time.sleep(10)
     log(f"=== BERHASIL MENJADWALKAN ITEM [{item_id}] SAAT INI JUGA! ===", "SUCCESS")
 
-    # Update status di database MySQL igbot
     update_db_schedule_status(item_id, "completed", f"Sukses dipublish/dijadwalkan ke Meta pada {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
 # ============================================================================
@@ -401,7 +396,6 @@ def schedule_story_item(page, item):
 def main():
     log("🚀 Memulai Executing Meta Story Auto Scheduler Bot...", "INFO")
 
-    # Temukan file schedule.json
     schedule_file = Path("schedule.json")
     if not schedule_file.exists():
         schedule_file = Path("config.json")
@@ -417,11 +411,20 @@ def main():
 
     log(f"Menemukan {len(schedules)} item PENDING dalam antrean schedule.json.", "INFO")
 
-    # Temukan user_data_dir yang valid
-    user_data_dir = "./user_data"
+    # Cari user_data_dir dari argumen atau deteksi folder user_data* di direktori saat ini
+    user_data_dir = None
     for arg in sys.argv:
         if arg.startswith("--user_data="):
             user_data_dir = arg.split("=", 1)[1]
+
+    if not user_data_dir:
+        for entry in os.listdir("."):
+            if entry.startswith("user_data") and os.path.isdir(entry):
+                user_data_dir = os.path.join(".", entry)
+                break
+
+    if not user_data_dir:
+        user_data_dir = "./user_data"
 
     log(f"Menggunakan profil sesi browser: {user_data_dir}", "INFO")
 
