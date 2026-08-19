@@ -212,6 +212,10 @@ class MetaAccountController extends Controller
             $pythonBin = $this->getPythonBinary();
 
             $outputPath = "public/storage/previews/meta_account_{$account->id}.png";
+            $resultJsonFile = storage_path("app/meta_check_result.json");
+            if (file_exists($resultJsonFile)) {
+                @unlink($resultJsonFile);
+            }
 
             if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
                 $cmd = "cd /d \"{$basePath}\" && {$pythonBin} check_meta_login.py --user_data={$account->session_folder} --output={$outputPath}";
@@ -223,7 +227,12 @@ class MetaAccountController extends Controller
             $output = shell_exec($cmd);
             
             $jsonResult = null;
-            if ($output) {
+            if (file_exists($resultJsonFile)) {
+                $content = file_get_contents($resultJsonFile);
+                $jsonResult = @json_decode($content, true);
+            }
+
+            if (!$jsonResult && $output) {
                 $lines = array_filter(array_map('trim', explode("\n", $output)));
                 foreach (array_reverse($lines) as $line) {
                     if (str_starts_with($line, '{') && str_ends_with($line, '}')) {

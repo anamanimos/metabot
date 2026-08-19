@@ -1,23 +1,25 @@
-import os
 import sys
+import os
 import io
 import json
 import time
 import argparse
 from pathlib import Path
 
-# Force UTF-8 output safely on Windows CMD / PHP CGI without WinError 6
+# Fix Windows Apache CGI / PHP shell_exec invalid handle issue [WinError 6]
 if sys.platform == 'win32':
-    try:
-        if hasattr(sys.stdout, 'buffer') and sys.stdout.buffer is not None:
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    except Exception:
-        pass
-    try:
-        if hasattr(sys.stderr, 'buffer') and sys.stderr.buffer is not None:
-            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-    except Exception:
-        pass
+    for stream_name in ('stdout', 'stderr'):
+        try:
+            stream = getattr(sys, stream_name)
+            if stream is None:
+                setattr(sys, stream_name, open(os.devnull, 'w', encoding='utf-8'))
+            else:
+                stream.fileno()
+        except Exception:
+            try:
+                setattr(sys, stream_name, open(os.devnull, 'w', encoding='utf-8'))
+            except Exception:
+                setattr(sys, stream_name, io.StringIO())
 
 # Set shared Playwright browser path to /var/www/meta.damaijaya.my.id/ms-playwright if available
 shared_browser_dir = Path("/var/www/meta.damaijaya.my.id/ms-playwright")
@@ -174,4 +176,16 @@ def check_login():
 
 if __name__ == "__main__":
     res = check_login()
-    print(json.dumps(res))
+    
+    # Simpan hasil pengecekan ke file JSON fisik untuk jaminan ketersediaan 100%
+    try:
+        os.makedirs("storage/app", exist_ok=True)
+        with open("storage/app/meta_check_result.json", "w", encoding="utf-8") as f:
+            json.dump(res, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+    try:
+        sys.__stdout__.write(json.dumps(res) + "\n")
+    except Exception:
+        pass
