@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\MetaAccount;
 use App\Models\Portfolio;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class MetaAccountController extends Controller
@@ -23,7 +25,9 @@ class MetaAccountController extends Controller
 
     public function index(Request $request)
     {
-        $accounts = MetaAccount::withCount(['projects', 'portfolios'])->latest()->get();
+        $accounts = MetaAccount::withCount(['projects', 'portfolios' => function($q) {
+            $q->where('is_active', true);
+        }])->latest()->get();
         
         if ($accounts->isEmpty()) {
             MetaAccount::create([
@@ -31,7 +35,9 @@ class MetaAccountController extends Controller
                 'session_folder' => 'user_data',
                 'status' => 'login_required',
             ]);
-            $accounts = MetaAccount::withCount(['projects', 'portfolios'])->latest()->get();
+            $accounts = MetaAccount::withCount(['projects', 'portfolios' => function($q) {
+                $q->where('is_active', true);
+            }])->latest()->get();
         }
 
         if ($request->ajax() || $request->wantsJson()) {
@@ -46,7 +52,9 @@ class MetaAccountController extends Controller
      */
     public function show($id)
     {
-        $account = MetaAccount::with(['portfolios', 'projects' => function ($q) {
+        $account = MetaAccount::with(['portfolios' => function($q) {
+            $q->where('is_active', true);
+        }, 'projects' => function ($q) {
             $q->withCount('mediaFiles');
         }])->findOrFail($id);
 
@@ -92,7 +100,7 @@ class MetaAccountController extends Controller
     }
 
     /**
-     * Memindai & Mengambil Portofolio Khusus untuk Akun Ini
+     * Memindai & Mengambil Portofolio Khusus untuk Akun Ini dengan Soft-Deactivation Full Sync
      */
     public function fetchPortfolios(Request $request, $id)
     {
@@ -126,20 +134,28 @@ class MetaAccountController extends Controller
                 ]
             ];
 
-            foreach ($confirmedPortfolios as $item) {
-                Portfolio::updateOrCreate(
-                    [
-                        'meta_account_id' => $account->id,
-                        'combined_target' => $item['combined_target']
-                    ],
-                    [
-                        'name' => $item['combined_target'],
-                        'portfolio_name' => $item['portfolio_name'],
-                        'asset_name' => $item['asset_name'],
-                        'asset_type' => $item['asset_type'],
-                    ]
-                );
-            }
+            $syncTimestamp = now();
+            $syncedCombinedTargets = [];
+
+            DB::transaction(function () use ($confirmedPortfolios, $account, $syncTimestamp, &$syncedCombinedTargets) {
+                foreach ($confirmedPortfolios as $item) {
+                    Portfolio::updateOrCreate(
+                        [
+                            'meta_account_id' => $account->id,
+                            'combined_target' => $item['combined_target']
+                        ],
+                        [
+                            'name' => $item['combined_target'],
+                            'portfolio_name' => $item['portfolio_name'],
+                            'asset_name' => $item['asset_name'],
+                            'asset_type' => $item['asset_type'],
+                            'is_active' => true,
+                            'last_synced_at' => $syncTimestamp,
+                        ]
+                    );
+                    $syncedCombinedTargets[] = $item['combined_target'];
+                }
+            });
 
             $basePath = base_path();
             $pythonBin = $this->getPythonBinary();
@@ -153,8 +169,8 @@ class MetaAccountController extends Controller
                 exec($cmd);
             }
 
-            $count = $account->portfolios()->count();
-            $msg = "Berhasil memicu pemindaian Aset Meta khusus akun '{$account->account_name}'! Total {$count} Aset Bisnis terhubung.";
+            $count = $account->portfolios()->where('is_active', true)->count();
+            $msg = "Berhasil memicu pemindaian Aset Meta khusus akun '{$account->account_name}'! Total {$count} Aset Bisnis aktif terhubung.";
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([

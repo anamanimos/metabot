@@ -54,7 +54,7 @@
             <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-800">
                 <span class="text-gray-500 block">Total Aset Bisnis / Portofolio:</span>
                 <p class="font-bold text-white text-sm mt-0.5">
-                    <i class="fa-solid fa-briefcase text-indigo-400 mr-1.5"></i>{{ $account->portfolios->count() }} Aset
+                    <i class="fa-solid fa-briefcase text-indigo-400 mr-1.5"></i>{{ $account->portfolios()->where('is_active', true)->count() }} Aset Aktif
                 </p>
             </div>
 
@@ -67,28 +67,31 @@
         </div>
     </div>
 
-    <!-- Section Aset Bisnis / Portofolio Terikat (Struktur 2-Tingkat) -->
+    <!-- Section Aset Bisnis / Portofolio Terikat (Hanya Menampilkan is_active = true) -->
     <div class="card-dark rounded-2xl p-6 space-y-4 shadow-xl border border-gray-800">
         <div class="flex items-center justify-between border-b border-gray-800 pb-3">
             <h2 class="text-lg font-bold text-white flex items-center space-x-2">
                 <i class="fa-solid fa-briefcase text-indigo-400"></i>
-                <span>Aset Bisnis 2-Tingkat (Halaman FB & Profil IG Per Grup)</span>
+                <span>Aset Bisnis 2-Tingkat (Aktif Terhubung)</span>
             </h2>
-            <span class="text-xs text-gray-400">Total: <strong>{{ $account->portfolios->count() }} Aset Spesifik</strong></span>
+            <span class="text-xs text-gray-400">Total: <strong>{{ $account->portfolios()->where('is_active', true)->count() }} Aset Aktif</strong></span>
         </div>
 
-        @if($account->portfolios->isEmpty())
+        @php
+            $activePortfolios = $account->portfolios()->where('is_active', true)->get();
+            $groupedPortfolios = $activePortfolios->groupBy(function($item) {
+                return $item->portfolio_name ?? $item->name;
+            })->filter(function($assets) {
+                return $assets->count() > 0;
+            });
+        @endphp
+
+        @if($groupedPortfolios->isEmpty())
             <div class="p-8 text-center text-gray-500 space-y-2">
-                <p>Belum ada Aset Bisnis yang terdaftar untuk akun ini.</p>
+                <p>Belum ada Aset Bisnis aktif yang terdaftar untuk akun ini.</p>
                 <p class="text-xs text-gray-400">Klik tombol <strong>"Ambil Portofolio Akun Ini"</strong> di atas untuk memindai aset bisnis dari Meta.</p>
             </div>
         @else
-            @php
-                $groupedPortfolios = $account->portfolios->groupBy(function($item) {
-                    return $item->portfolio_name ?? $item->name;
-                });
-            @endphp
-
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 @foreach($groupedPortfolios as $groupName => $assets)
                     <div class="bg-gray-900/80 border border-gray-800 p-4 rounded-xl space-y-3 hover:border-indigo-500/50 transition shadow">
@@ -147,14 +150,29 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800">
+                    @php
+                        $activeCombinedTargets = $account->portfolios()->where('is_active', true)->pluck('combined_target')->toArray();
+                        $activePortfolioNames = $account->portfolios()->where('is_active', true)->pluck('portfolio_name')->toArray();
+                    @endphp
                     @forelse($account->projects as $proj)
+                        @php
+                            $targetVal = $proj->portfolio_name;
+                            $isAssetActive = in_array($targetVal, $activeCombinedTargets) || in_array($targetVal, $activePortfolioNames);
+                        @endphp
                         <tr class="hover:bg-gray-800/40 transition">
                             <td class="px-6 py-4 font-bold text-white">{{ $proj->name }}</td>
-                            <td class="px-6 py-4 font-semibold text-indigo-300">{{ $proj->portfolio_name }}</td>
+                            <td class="px-6 py-4">
+                                <div class="font-semibold text-indigo-300">{{ $proj->portfolio_name }}</div>
+                                @if(!$isAssetActive)
+                                    <span class="inline-flex items-center px-2 py-0.5 mt-1 text-[10px] font-bold rounded-full bg-amber-950 text-amber-300 border border-amber-800">
+                                        <i class="fa-solid fa-triangle-exclamation mr-1 text-amber-400"></i>⚠️ Aset Tidak Ditemukan / Nonaktif
+                                    </span>
+                                @endif
+                            </td>
                             <td class="px-6 py-4 font-semibold text-gray-300"><i class="fa-regular fa-clock text-indigo-400 mr-1"></i>{{ $proj->target_time }} WIB</td>
                             <td class="px-6 py-4 text-xs text-gray-400">{{ $proj->images_per_post }} Gambar / Story</td>
                             <td class="px-6 py-4">
-                                <span class="px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wider {{ $proj->status === 'active' ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700' : 'bg-amber-900/60 text-amber-700 border border-amber-700' }}">
+                                <span class="px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wider {{ $proj->status === 'active' ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700' : 'bg-amber-900/60 text-amber-300 border border-amber-700' }}">
                                     {{ $proj->status }}
                                 </span>
                             </td>

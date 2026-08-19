@@ -30,8 +30,11 @@ class ProjectController extends Controller
             $q->where('status', 'pending')->orderBy('target_date');
         }])->latest()->get();
 
-        $accounts = MetaAccount::with('portfolios')->orderBy('account_name')->get();
-        $portfolios = Portfolio::with('metaAccount')->orderBy('name')->get();
+        $accounts = MetaAccount::with(['portfolios' => function($q) {
+            $q->where('is_active', true);
+        }])->orderBy('account_name')->get();
+        
+        $portfolios = Portfolio::where('is_active', true)->with('metaAccount')->orderBy('portfolio_name')->get();
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -46,8 +49,11 @@ class ProjectController extends Controller
 
     public function create()
     {
-        $accounts = MetaAccount::with('portfolios')->orderBy('account_name')->get();
-        $portfolios = Portfolio::with('metaAccount')->orderBy('name')->get();
+        $accounts = MetaAccount::with(['portfolios' => function($q) {
+            $q->where('is_active', true);
+        }])->orderBy('account_name')->get();
+        
+        $portfolios = Portfolio::where('is_active', true)->with('metaAccount')->orderBy('portfolio_name')->get();
 
         return view('projects.create', compact('accounts', 'portfolios'));
     }
@@ -70,8 +76,11 @@ class ProjectController extends Controller
     public function edit($id)
     {
         $project = Project::with(['metaAccount', 'mediaFiles'])->findOrFail($id);
-        $accounts = MetaAccount::with('portfolios')->orderBy('account_name')->get();
-        $portfolios = Portfolio::with('metaAccount')->orderBy('name')->get();
+        $accounts = MetaAccount::with(['portfolios' => function($q) {
+            $q->where('is_active', true);
+        }])->orderBy('account_name')->get();
+        
+        $portfolios = Portfolio::where('is_active', true)->with('metaAccount')->orderBy('portfolio_name')->get();
 
         return view('projects.edit', compact('project', 'accounts', 'portfolios'));
     }
