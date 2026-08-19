@@ -29,32 +29,16 @@ class MetaAccountController extends Controller
             MetaAccount::create([
                 'account_name' => 'Akun Utama (Sevencols)',
                 'session_folder' => 'user_data',
-                'status' => 'active',
+                'status' => 'login_required',
             ]);
             $accounts = MetaAccount::withCount(['projects', 'portfolios'])->latest()->get();
-        }
-
-        $stateFile = base_path('state.json');
-        $hasStateCookie = false;
-        if (file_exists($stateFile)) {
-            $content = @file_get_contents($stateFile);
-            if ($content && str_contains($content, 'c_user')) {
-                $hasStateCookie = true;
-            }
-        }
-
-        foreach ($accounts as $acc) {
-            if ($hasStateCookie && $acc->status !== 'active') {
-                $acc->status = 'active';
-                $acc->save();
-            }
         }
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['accounts' => $accounts]);
         }
 
-        return view('meta_accounts.index', compact('accounts', 'hasStateCookie'));
+        return view('meta_accounts.index', compact('accounts'));
     }
 
     /**
@@ -166,7 +150,7 @@ class MetaAccountController extends Controller
     }
 
     /**
-     * Memeriksa Status Login Akun Meta dengan Tangkapan Layar (Screenshot) Live
+     * Memeriksa Status Login Akun Meta dengan Tangkapan Layar (Screenshot) Live & Menyimpan Status Persisten ke DB
      */
     public function checkStatus($id)
     {
@@ -187,7 +171,6 @@ class MetaAccountController extends Controller
 
             $output = shell_exec($cmd);
             
-            // Ekstrak baris JSON dari keluaran terminal
             $jsonResult = null;
             if ($output) {
                 $lines = array_filter(array_map('trim', explode("\n", $output)));
@@ -206,6 +189,7 @@ class MetaAccountController extends Controller
             }
             $msg = $jsonResult['message'] ?? ($isLoggedIn ? "Akun Terhubung!" : "Belum Login");
 
+            // Simpan status login secara persisten di database MySQL
             $account->status = $isLoggedIn ? 'active' : 'login_required';
             $account->save();
 
@@ -223,7 +207,7 @@ class MetaAccountController extends Controller
     }
 
     /**
-     * Mengimpor Berkas Sesi state.json / Cookie JSON
+     * Mengimpor Berkas Sesi state.json / Cookie JSON & Menyimpan Status Persisten ke DB
      */
     public function importState(Request $request, $id)
     {
