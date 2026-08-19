@@ -28,22 +28,60 @@ SECTION_HEADER_BLACKLIST = [
 ]
 
 def is_invalid_or_asset_group_name(name):
-    """Mengecek apakah nama grup tidak valid, header generik, atau nama aset yang salah tertangkap (mengandung koma username)."""
+    """Mengecek apakah nama grup tidak valid, header generik, atau nama aset yang salah tertangkap."""
     if not name:
         return True
     name_lower = name.strip().lower()
     if name_lower in SECTION_HEADER_BLACKLIST or name_lower in ["non portofolio", "unknown_active"]:
         return True
-    # Nama aset khas Meta Business Suite mengandung koma (contoh: "NB Tour Organizer, nbto.mlg")
-    if "," in name and len(name.split(",")) > 1:
-        return True
     return False
 
+def extract_assets_from_panel(page, portfolio_name):
+    """Pindai seluruh baris aset di panel kanan Meta Business Suite secara presisi."""
+    results = []
+    seen = set()
+
+    candidate_divs = page.locator("div").filter(has_text="Halaman Facebook").all()
+    candidate_divs += page.locator("div").filter(has_text="Profil Instagram").all()
+    candidate_divs += page.locator("div").filter(has_text="profil Instagram").all()
+
+    for div in candidate_divs:
+        try:
+            text = div.inner_text().strip()
+            lines = [l.strip() for l in text.split("\n") if l.strip()]
+            
+            # Cari baris mana yang merupakan subtitle jenis aset (Halaman Facebook / Profil Instagram)
+            type_idx = -1
+            for idx, line in enumerate(lines):
+                line_lower = line.lower()
+                if "halaman facebook" in line_lower or "profil instagram" in line_lower:
+                    type_idx = idx
+                    break
+            
+            if type_idx > 0:
+                # Nama aset adalah baris TEPAT SEBELUM jenis aset
+                asset_name = lines[type_idx - 1].replace("•", "").strip()
+                asset_type = lines[type_idx].strip()
+
+                if asset_name and asset_name.lower() not in SECTION_HEADER_BLACKLIST:
+                    key = f"{asset_name.lower()}|{asset_type.lower()}"
+                    if key not in seen:
+                        seen.add(key)
+                        results.append({
+                            "portfolio_name": portfolio_name,
+                            "asset_name": asset_name,
+                            "asset_type": asset_type,
+                            "combined_target": f"{portfolio_name} - {asset_name}"
+                        })
+                        log(f"  -> Aset terdeteksi: '{asset_name}' ({asset_type}) untuk portofolio '{portfolio_name}'", "SUCCESS")
+        except Exception:
+            continue
+
+    return results
+
 def find_active_sidebar_group_name(page):
-    """Cari nama grup portofolio/akun yang sedang aktif di SIDEBAR KIRI SAJA.
-    Memfilter elemen yang mengandung 'aset bisnis' (ciri khas sidebar kiri) untuk mengabaikan radio button aset di panel kanan."""
+    """Cari nama grup portofolio/akun yang sedang aktif di SIDEBAR KIRI SAJA."""
     try:
-        # 1. Cari item di sidebar kiri yang mempunyai text 'aset bisnis' (0 aset bisnis / N aset bisnis)
         group_items = page.locator("div").filter(has_text="aset bisnis").all()
         
         for item in group_items:
@@ -51,13 +89,11 @@ def find_active_sidebar_group_name(page):
                 text = item.inner_text().strip()
                 lines = [l.strip() for l in text.split("\n") if l.strip()]
                 
-                # Pastikan ini item grup sidebar (punya 2+ baris dan baris terakhir 'N aset bisnis')
                 if len(lines) >= 2 and "aset bisnis" in lines[-1].lower():
                     g_name = lines[0].strip()
                     if is_invalid_or_asset_group_name(g_name):
                         continue
 
-                    # Cek indikator aktif pada elemen ini atau anak elemennya
                     is_checked = item.get_attribute("aria-checked")
                     is_selected = item.get_attribute("aria-selected")
                     
@@ -75,7 +111,6 @@ def find_active_sidebar_group_name(page):
             except Exception:
                 continue
 
-        # 2. Fallback: Cari TEPAT di bawah section 'Akun Anda' pada sidebar kiri
         akun_anda_section = page.get_by_text("Akun Anda", exact=False).first
         if akun_anda_section.is_visible(timeout=2000):
             try:
@@ -96,8 +131,7 @@ def find_active_sidebar_group_name(page):
 
 def scan_currently_active_panel(page, top_button_locator):
     """Pindai aset yang SUDAH TAMPIL di panel kanan saat dropdown 
-    pertama dibuka, dengan nama grup yang BENAR (diambil dari sidebar kiri, 
-    BUKAN dari tombol header dropdown)."""
+    pertama dibuka, dengan nama grup yang BENAR (diambil dari sidebar kiri)."""
     
     active_group_name = find_active_sidebar_group_name(page)
     
@@ -107,32 +141,7 @@ def scan_currently_active_panel(page, top_button_locator):
     else:
         log(f"Grup aktif default terkonfirmasi: '{active_group_name}'", "SUCCESS")
     
-    results = []
-    asset_items = page.locator("div").filter(has_text="Halaman Facebook").all()
-    asset_items += page.locator("div").filter(has_text="Profil Instagram").all()
-    asset_items += page.locator("div").filter(has_text="profil Instagram").all()
-    
-    seen = set()
-    for asset in asset_items:
-        try:
-            text = asset.inner_text().strip()
-            lines = [l.strip() for l in text.split("\n") if l.strip()]
-            if len(lines) >= 2:
-                asset_name, asset_type = lines[0], lines[1]
-                key = f"{asset_name}|{asset_type}"
-                if key not in seen and ("Halaman Facebook" in asset_type or "Profil Instagram" in asset_type or "profil Instagram" in asset_type):
-                    seen.add(key)
-                    results.append({
-                        "portfolio_name": active_group_name,
-                        "asset_name": asset_name,
-                        "asset_type": asset_type,
-                        "combined_target": f"{active_group_name} - {asset_name}"
-                    })
-                    log(f"  -> [PANEL AKTIF DEFAULT: {active_group_name}] Aset ditemukan: '{asset_name}' ({asset_type})", "SUCCESS")
-        except Exception:
-            continue
-    
-    return results
+    return extract_assets_from_panel(page, active_group_name)
 
 def deduplicate_results(results):
     """Deduplikasi global berbasis (asset_name, asset_type)"""
@@ -157,7 +166,6 @@ def deduplicate_results(results):
             existing_item = seen_assets[asset_key]
             existing_p = existing_item.get("portfolio_name", "")
             
-            # Prioritaskan nama grup yang valid jika nama portofolio saat ini tidak valid / berupa koma username
             if is_invalid_or_asset_group_name(existing_p) and not is_invalid_or_asset_group_name(p_name):
                 log(f"Deduplikasi: Memperbarui portofolio untuk aset '{a_name}' dari '{existing_p}' -> '{p_name}'", "INFO")
                 seen_assets[asset_key] = item
@@ -200,7 +208,7 @@ def scan_all_portfolios_and_assets(page):
 
     page.wait_for_timeout(2000)
 
-    # 1. SCAN PANEL KANAN YANG SUDAH TERBUKA DEFAULT (Menggunakan nama grup aktif dari sidebar, BUKAN dari header button)
+    # 1. SCAN PANEL KANAN YANG SUDAH TERBUKA DEFAULT
     initial_results = scan_currently_active_panel(page, top_button)
     results.extend(initial_results)
     
@@ -237,28 +245,8 @@ def scan_all_portfolios_and_assets(page):
             group_element.click(timeout=5000)
             page.wait_for_timeout(2000)
             
-            asset_items = page.locator("div").filter(has_text="Halaman Facebook").all()
-            asset_items += page.locator("div").filter(has_text="Profil Instagram").all()
-            asset_items += page.locator("div").filter(has_text="profil Instagram").all()
-            
-            for asset in asset_items:
-                try:
-                    text = asset.inner_text().strip()
-                    lines = [l.strip() for l in text.split("\n") if l.strip()]
-                    if len(lines) >= 2:
-                        asset_name = lines[0]
-                        asset_type = lines[1]
-                        combined_target = f"{group_name} - {asset_name}"
-                        if "Halaman Facebook" in asset_type or "Profil Instagram" in asset_type or "profil Instagram" in asset_type:
-                            results.append({
-                                "portfolio_name": group_name,
-                                "asset_name": asset_name,
-                                "asset_type": asset_type,
-                                "combined_target": combined_target
-                            })
-                            log(f"  -> Aset ditemukan: '{combined_target}' ({asset_type})", "SUCCESS")
-                except Exception:
-                    continue
+            group_assets = extract_assets_from_panel(page, group_name)
+            results.extend(group_assets)
                     
         except Exception as e:
             log(f"Gagal memindai grup '{group_name}': {e}", "WARN")
