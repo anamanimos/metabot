@@ -13,7 +13,7 @@
                 <span>Akun Meta (Facebook / Instagram)</span>
             </h1>
             <p class="text-sm text-gray-400 mt-1">
-                Kelola status sesi login akun Meta, pindaian portofolio per akun, & fitur Login Ulang sesi (`state.json`).
+                Kelola status sesi akun Meta, pindaian portofolio per akun, & Login Langsung via Web UI.
             </p>
         </div>
 
@@ -87,7 +87,7 @@
                                 id="btn-relogin-{{ $account->id }}"
                                 class="px-3 py-1.5 text-xs font-semibold rounded-xl transition flex items-center justify-center space-x-1 {{ $account->status === 'active' ? 'bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-800' : 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg font-bold border border-amber-400 animate-pulse' }}">
                             <i class="fa-solid fa-key"></i>
-                            <span>{{ $account->status === 'active' ? 'Import Sesi' : '🔑 Login Ulang' }}</span>
+                            <span>{{ $account->status === 'active' ? 'Login Sesi' : '🔑 Login Ulang' }}</span>
                         </button>
                     </div>
 
@@ -142,34 +142,80 @@
     </div>
 </div>
 
-<!-- Modal Login Ulang / Import Sesi Cookie state.json -->
+<!-- Modal Login Langsung / Import Sesi Cookie state.json -->
 <div id="modalImportState" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="card-dark w-full max-w-lg rounded-2xl shadow-2xl border border-gray-800 p-6 space-y-5 relative">
         <div class="flex items-center justify-between border-b border-gray-800 pb-3">
             <h3 class="text-lg font-bold text-white flex items-center space-x-2">
                 <i class="fa-solid fa-key text-amber-400"></i>
-                <span>🔑 Login Ulang / Hubungkan Sesi (<span id="modalImportAccountTitle" class="text-amber-300"></span>)</span>
+                <span>🔑 Login / Hubungkan Sesi (<span id="modalImportAccountTitle" class="text-amber-300"></span>)</span>
             </h3>
             <button onclick="closeImportStateModal()" class="text-gray-400 hover:text-white transition">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
         </div>
 
-        <div class="bg-indigo-950/60 border border-indigo-800 p-3 rounded-xl text-xs text-indigo-200 space-y-1">
-            <p class="font-bold flex items-center space-x-1.5 text-indigo-300">
-                <i class="fa-solid fa-circle-info"></i>
-                <span>Petunjuk Login Ulang Cepat:</span>
-            </p>
-            <p class="text-[11px] leading-relaxed text-indigo-300/90">
-                Jalankan script <code>export_session.bat</code> di komputer lokal Anda untuk login 1-kali ke Facebook Meta, lalu unggah file <code>state.json</code> hasil export di bawah ini.
-            </p>
+        <!-- Navigation Sub-Tabs -->
+        <div class="flex border-b border-gray-800 text-xs font-semibold">
+            <button type="button" onclick="switchLoginTab('direct')" id="tabBtnDirect" class="py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2">
+                <i class="fa-solid fa-right-to-bracket"></i>
+                <span>Metode 1: Login Langsung Form Web</span>
+            </button>
+            <button type="button" onclick="switchLoginTab('file')" id="tabBtnFile" class="py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2">
+                <i class="fa-solid fa-file-import"></i>
+                <span>Metode 2: Unggah state.json</span>
+            </button>
         </div>
 
-        <form id="formImportState" class="space-y-4" enctype="multipart/form-data">
+        <!-- TAB 1: FORM LOGIN LANGSUNG VIA WEB UI -->
+        <form id="formDirectLogin" class="space-y-4">
+            <input type="hidden" id="directLoginAccountId" name="account_id">
+            
+            <div class="bg-indigo-950/50 border border-indigo-800 p-3 rounded-xl text-xs text-indigo-200 space-y-1">
+                <p class="font-bold flex items-center space-x-1.5 text-indigo-300">
+                    <i class="fa-solid fa-bolt text-amber-400"></i>
+                    <span>Login Otomatis via Web UI:</span>
+                </p>
+                <p class="text-[11px] text-indigo-300/90 leading-relaxed">
+                    Masukkan Email & Kata Sandi Facebook Anda. Bot Playwright akan melakukan login otomatis di server dan menyimpan sesi secara langsung!
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Email / No. HP Facebook</label>
+                <input type="text" name="email" required placeholder="contoh: email@domain.com atau 081234..." 
+                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Kata Sandi (Password) Facebook</label>
+                <input type="password" name="password" required placeholder="Masukkan kata sandi Facebook Anda" 
+                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Kode 2FA / Authenticator (Opsional)</label>
+                <input type="text" name="two_factor" placeholder="Masukkan 6-digit kode OTP/2FA jika akun aktifkan 2FA" 
+                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono tracking-widest">
+            </div>
+
+            <div class="pt-3 border-t border-gray-800 flex justify-end space-x-3">
+                <button type="button" onclick="closeImportStateModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl text-xs transition">
+                    Batal
+                </button>
+                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>Proses Login Langsung</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- TAB 2: UNGGAH FILE STATE.JSON -->
+        <form id="formImportState" class="space-y-4 hidden" enctype="multipart/form-data">
             <input type="hidden" id="importAccountId" name="account_id">
 
             <div>
-                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Pilihan 1: Unggah File state.json (Playwright Cookie Format)</label>
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Unggah File state.json (Playwright Cookie Format)</label>
                 <input type="file" name="state_file" accept=".json" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
             </div>
 
@@ -180,7 +226,7 @@
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Pilihan 2: Tempel Teks JSON Cookies</label>
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Tempel Teks JSON Cookies</label>
                 <textarea name="state_json" rows="4" placeholder='{"cookies": [{"name": "c_user", "value": "..."}, ...]}' 
                           class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"></textarea>
             </div>
@@ -189,7 +235,7 @@
                 <button type="button" onclick="closeImportStateModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl text-xs transition">
                     Batal
                 </button>
-                <button type="submit" class="px-5 py-2 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
+                <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                     <span>Simpan & Hubungkan Sesi</span>
                 </button>
@@ -209,15 +255,81 @@
         document.getElementById('modalNewAccount').classList.add('hidden');
     }
 
+    function switchLoginTab(tab) {
+        const btnDirect = document.getElementById('tabBtnDirect');
+        const btnFile = document.getElementById('tabBtnFile');
+        const formDirect = document.getElementById('formDirectLogin');
+        const formFile = document.getElementById('formImportState');
+
+        if (tab === 'direct') {
+            btnDirect.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
+            btnFile.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
+            formDirect.classList.remove('hidden');
+            formFile.classList.add('hidden');
+        } else {
+            btnFile.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
+            btnDirect.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
+            formFile.classList.remove('hidden');
+            formDirect.classList.add('hidden');
+        }
+    }
+
     function openImportStateModal(id, accountName) {
         document.getElementById('importAccountId').value = id;
+        document.getElementById('directLoginAccountId').value = id;
         document.getElementById('modalImportAccountTitle').textContent = accountName || '';
         document.getElementById('modalImportState').classList.remove('hidden');
+        switchLoginTab('direct');
     }
 
     function closeImportStateModal() {
         document.getElementById('modalImportState').classList.add('hidden');
     }
+
+    // Submit Direct Web UI Login (Email & Password)
+    document.getElementById('formDirectLogin').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const id = document.getElementById('directLoginAccountId').value;
+        const formData = new FormData(this);
+
+        showLoading('Memproses Login Meta...', 'Membuka Chromium browser untuk mengautentikasi Email & Password ke Facebook Meta...');
+
+        fetch(`/meta-accounts/${id}/direct-login`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Berhasil Login!', data.message);
+                closeImportStateModal();
+
+                // Update status badge di DOM secara dinamis
+                const badge = document.getElementById(`account-status-badge-${id}`);
+                const dot = document.getElementById(`account-status-dot-${id}`);
+                const text = document.getElementById(`account-status-text-${id}`);
+                const btnRelogin = document.getElementById(`btn-relogin-${id}`);
+                if (badge && dot && text) {
+                    badge.className = "px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 bg-emerald-950 text-emerald-300 border border-emerald-800";
+                    dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+                    text.textContent = "TERHUBUNG";
+                    if (btnRelogin) {
+                        btnRelogin.className = "px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-xs font-semibold rounded-xl border border-indigo-800 transition flex items-center justify-center space-x-1";
+                        btnRelogin.innerHTML = '<i class="fa-solid fa-key"></i><span>Login Sesi</span>';
+                    }
+                }
+            } else {
+                showAlert('error', 'Gagal Login', data.message);
+            }
+        })
+        .catch(err => {
+            showAlert('error', 'Kesalahan Sistem', err.message);
+        });
+    });
 
     // Ambil Portofolio Khusus Per Akun Meta
     function fetchAccountPortfolios(id, accountName) {
@@ -248,7 +360,7 @@
         });
     }
 
-    // Cek Status Login Akun Live dengan Fitur Login Ulang Langsung dari Modal Pop-up
+    // Cek Status Login Akun Live
     function checkAccountStatus(id, accountName) {
         showLoading('Memeriksa Status Login Meta...', 'Membuka Chromium browser untuk mengambil tangkapan layar Meta Business Suite real-time...');
 
@@ -259,7 +371,6 @@
         })
         .then(res => res.json())
         .then(data => {
-            // Update badge status di kartu secara dinamis
             const badge = document.getElementById(`account-status-badge-${id}`);
             const dot = document.getElementById(`account-status-dot-${id}`);
             const text = document.getElementById(`account-status-text-${id}`);
@@ -272,7 +383,7 @@
                     text.textContent = "TERHUBUNG";
                     if (btnRelogin) {
                         btnRelogin.className = "px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-xs font-semibold rounded-xl border border-indigo-800 transition flex items-center justify-center space-x-1";
-                        btnRelogin.innerHTML = '<i class="fa-solid fa-key"></i><span>Import Sesi</span>';
+                        btnRelogin.innerHTML = '<i class="fa-solid fa-key"></i><span>Login Sesi</span>';
                     }
                 } else {
                     badge.className = "px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 bg-red-950 text-red-300 border border-red-800";
@@ -291,7 +402,7 @@
                         <button onclick="Swal.close(); openImportStateModal(${id}, '${accountName}')" 
                                 class="w-full py-2.5 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
                             <i class="fa-solid fa-key text-sm"></i>
-                            <span>🔑 Klik Di Sini Untuk Login Ulang / Hubungkan Sesi</span>
+                            <span>🔑 Klik Di Sini Untuk Login Ulang Langsung</span>
                         </button>
                     </div>
                 ` : '';
@@ -325,7 +436,7 @@
         });
     }
 
-    // Submit Import / Login Ulang Sesi State
+    // Submit Import Sesi File state.json
     document.getElementById('formImportState').addEventListener('submit', function(e) {
         e.preventDefault();
         const id = document.getElementById('importAccountId').value;
@@ -347,7 +458,6 @@
                 showAlert('success', 'Berhasil Terhubung!', data.message);
                 closeImportStateModal();
 
-                // Update status badge di DOM secara dinamis
                 const badge = document.getElementById(`account-status-badge-${id}`);
                 const dot = document.getElementById(`account-status-dot-${id}`);
                 const text = document.getElementById(`account-status-text-${id}`);
@@ -358,7 +468,7 @@
                     text.textContent = "TERHUBUNG";
                     if (btnRelogin) {
                         btnRelogin.className = "px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-xs font-semibold rounded-xl border border-indigo-800 transition flex items-center justify-center space-x-1";
-                        btnRelogin.innerHTML = '<i class="fa-solid fa-key"></i><span>Import Sesi</span>';
+                        btnRelogin.innerHTML = '<i class="fa-solid fa-key"></i><span>Login Sesi</span>';
                     }
                 }
             } else {

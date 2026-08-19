@@ -32,6 +32,7 @@ Route::resource('meta-accounts', MetaAccountController::class);
 Route::get('meta-accounts/{id}/check-status', [MetaAccountController::class, 'checkStatus'])->name('meta-accounts.checkStatus');
 Route::post('meta-accounts/{id}/import-state', [MetaAccountController::class, 'importState'])->name('meta-accounts.importState');
 Route::post('meta-accounts/{id}/fetch-portfolios', [MetaAccountController::class, 'fetchPortfolios'])->name('meta-accounts.fetchPortfolios');
+Route::post('meta-accounts/{id}/direct-login', [MetaAccountController::class, 'directLogin'])->name('meta-accounts.directLogin');
 
 // Portfolios Scanning Route
 Route::post('portfolios/fetch', [PortfolioController::class, 'fetchPortfolios'])->name('portfolios.fetch');

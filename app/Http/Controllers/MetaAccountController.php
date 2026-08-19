@@ -189,7 +189,6 @@ class MetaAccountController extends Controller
             }
             $msg = $jsonResult['message'] ?? ($isLoggedIn ? "Akun Terhubung!" : "Belum Login");
 
-            // Simpan status login secara persisten di database MySQL
             $account->status = $isLoggedIn ? 'active' : 'login_required';
             $account->save();
 
@@ -203,6 +202,68 @@ class MetaAccountController extends Controller
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Gagal mengecek status: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Melakukan Login Langsung Meta / Facebook dari Form Web UI
+     */
+    public function directLogin(Request $request, $id)
+    {
+        try {
+            set_time_limit(180);
+            $request->validate([
+                'email' => 'required|string',
+                'password' => 'required|string',
+                'two_factor' => 'nullable|string',
+            ]);
+
+            $account = MetaAccount::findOrFail($id);
+            $basePath = base_path();
+            $pythonBin = $this->getPythonBinary();
+
+            $emailArg = escapeshellarg($request->email);
+            $passArg = escapeshellarg($request->password);
+            $twoFactorArg = $request->two_factor ? escapeshellarg($request->two_factor) : '';
+
+            $cmdExtra = $twoFactorArg ? "--two_factor={$twoFactorArg}" : "";
+
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                $cmd = "cd /d \"{$basePath}\" && {$pythonBin} login_meta_account.py --email={$emailArg} --password={$passArg} {$cmdExtra} --user_data={$account->session_folder}";
+            } else {
+                $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
+                $cmd = "export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && cd \"{$basePath}\" && {$venvPython} login_meta_account.py --email={$emailArg} --password={$passArg} {$cmdExtra} --user_data={$account->session_folder}";
+            }
+
+            $output = shell_exec($cmd);
+
+            $jsonResult = null;
+            if ($output) {
+                $lines = array_filter(array_map('trim', explode("\n", $output)));
+                foreach (array_reverse($lines) as $line) {
+                    if (str_starts_with($line, '{') && str_ends_with($line, '}')) {
+                        $jsonResult = @json_decode($line, true);
+                        if ($jsonResult) break;
+                    }
+                }
+            }
+
+            $success = $jsonResult['success'] ?? false;
+            $msg = $jsonResult['message'] ?? ($success ? "Berhasil Login ke Meta!" : "Gagal Login ke Meta.");
+
+            if ($success) {
+                $account->status = 'active';
+                $account->save();
+            }
+
+            return response()->json([
+                'success' => $success,
+                'status' => $account->status,
+                'message' => $msg
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Gagal login: ' . $e->getMessage()], 500);
         }
     }
 
