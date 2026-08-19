@@ -3,7 +3,6 @@
 use App\Http\Controllers\MetaAccountController;
 use App\Http\Controllers\PortfolioController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers;
 use App\Http\Controllers\ScheduleController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +29,8 @@ Route::get('schedules/execution-progress', [ScheduleController::class, 'executio
 
 // Meta Accounts Routes
 Route::resource('meta-accounts', MetaAccountController::class);
+Route::get('meta-accounts/{id}/check-status', [MetaAccountController::class, 'checkStatus'])->name('meta-accounts.checkStatus');
+Route::post('meta-accounts/{id}/import-state', [MetaAccountController::class, 'importState'])->name('meta-accounts.importState');
 
 // Portfolios Scanning Route
 Route::post('portfolios/fetch', [PortfolioController::class, 'fetchPortfolios'])->name('portfolios.fetch');

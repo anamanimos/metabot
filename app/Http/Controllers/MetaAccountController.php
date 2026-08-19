@@ -34,11 +34,28 @@ class MetaAccountController extends Controller
             $accounts = MetaAccount::withCount(['projects', 'portfolios'])->latest()->get();
         }
 
+        // Cek secara cepat ketersediaan cookie sesi state.json untuk setiap akun
+        $stateFile = base_path('state.json');
+        $hasStateCookie = false;
+        if (file_exists($stateFile)) {
+            $content = @file_get_contents($stateFile);
+            if ($content && str_contains($content, 'c_user')) {
+                $hasStateCookie = true;
+            }
+        }
+
+        foreach ($accounts as $acc) {
+            if ($hasStateCookie && $acc->status !== 'active') {
+                $acc->status = 'active';
+                $acc->save();
+            }
+        }
+
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['accounts' => $accounts]);
         }
 
-        return view('meta_accounts.index', compact('accounts'));
+        return view('meta_accounts.index', compact('accounts', 'hasStateCookie'));
     }
 
     /**
@@ -78,7 +95,7 @@ class MetaAccountController extends Controller
                 exec("{$pythonBin} {$basePath}/fetch_portfolios.py --user_data={$folderName} &");
             }
 
-            $msg = "Akun Meta '{$account->account_name}' berhasil dibuat! Jendela CMD bot untuk login 1-kali telah dibuka.";
+            $msg = "Akun Meta '{$account->account_name}' berhasil dibuat! Jendela bot untuk login telah disiapkan.";
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -102,6 +119,90 @@ class MetaAccountController extends Controller
     }
 
     /**
+     * Memeriksa Status Login Akun Meta
+     */
+    public function checkStatus($id)
+    {
+        $account = MetaAccount::findOrFail($id);
+        $stateFile = base_path('state.json');
+
+        $isLoggedIn = false;
+        $fbUserId = null;
+
+        if (file_exists($stateFile)) {
+            $content = @file_get_contents($stateFile);
+            $json = @json_decode($content, true);
+            if (isset($json['cookies']) && is_array($json['cookies'])) {
+                foreach ($json['cookies'] as $cookie) {
+                    if (isset($cookie['name']) && $cookie['name'] === 'c_user') {
+                        $isLoggedIn = true;
+                        $fbUserId = $cookie['value'] ?? null;
+                        break;
+                    }
+                }
+            }
+        }
+
+        $account->status = $isLoggedIn ? 'active' : 'login_required';
+        $account->save();
+
+        $msg = $isLoggedIn 
+            ? "Status Akun '{$account->account_name}' TERHUBUNG! (ID Pengguna Facebook: {$fbUserId})" 
+            : "Status Akun '{$account->account_name}' BELUM LOGIN. Silakan import file state.json atau hubungkan sesi terlebih dahulu.";
+
+        return response()->json([
+            'success' => true,
+            'is_logged_in' => $isLoggedIn,
+            'fb_user_id' => $fbUserId,
+            'status' => $account->status,
+            'message' => $msg
+        ]);
+    }
+
+    /**
+     * Mengimpor Berkas Sesi state.json / Cookie JSON
+     */
+    public function importState(Request $request, $id)
+    {
+        try {
+            $account = MetaAccount::findOrFail($id);
+            
+            $jsonContent = null;
+            if ($request->hasFile('state_file')) {
+                $jsonContent = file_get_contents($request->file('state_file')->getRealPath());
+            } elseif ($request->filled('state_json')) {
+                $jsonContent = $request->state_json;
+            }
+
+            if (!$jsonContent) {
+                return response()->json(['success' => false, 'message' => 'Silakan unggah file state.json atau tempel teks JSON cookie!'], 400);
+            }
+
+            $parsed = @json_decode($jsonContent, true);
+            if (!is_array($parsed)) {
+                return response()->json(['success' => false, 'message' => 'Format JSON cookie tidak valid! Harus berupa objek JSON state Playwright.'], 400);
+            }
+
+            // Simpan ke state.json
+            file_put_contents(base_path('state.json'), json_encode($parsed, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+            $account->status = 'active';
+            $account->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Sesi Sembungan untuk '{$account->account_name}' berhasil di-impor & terhubung!",
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengimpor sesi: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Menghapus Akun Meta & Cleaning Folder Sesi jika ada
      */
     public function destroy(Request $request, $id)
@@ -111,7 +212,6 @@ class MetaAccountController extends Controller
             $accountName = $account->account_name;
             $sessionFolder = $account->session_folder;
 
-            // Hapus folder sesi dari disk jika bukan folder user_data default
             if ($sessionFolder !== 'user_data') {
                 $folderPath = base_path($sessionFolder);
                 if (file_exists($folderPath)) {
