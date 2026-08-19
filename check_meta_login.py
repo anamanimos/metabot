@@ -21,6 +21,52 @@ if shared_browser_dir.exists():
 
 from playwright.sync_api import sync_playwright
 
+def sanitize_cookies_for_playwright(raw_cookies):
+    """Membersihkan format cookie dari Cookie-Editor agar 100% kompatibel dengan Playwright"""
+    sanitized = []
+    for c in raw_cookies:
+        if not isinstance(c, dict):
+            continue
+        name = c.get("name")
+        value = c.get("value")
+        if not name or value is None:
+            continue
+
+        domain = c.get("domain", ".facebook.com")
+        if domain.startswith("http://") or domain.startswith("https://"):
+            domain = domain.split("//", 1)[1].split("/")[0]
+
+        cookie = {
+            "name": str(name),
+            "value": str(value),
+            "domain": domain,
+            "path": c.get("path", "/")
+        }
+
+        # Filter sameSite Playwright
+        same_site = str(c.get("sameSite", "")).lower()
+        if "lax" in same_site:
+            cookie["sameSite"] = "Lax"
+        elif "strict" in same_site:
+            cookie["sameSite"] = "Strict"
+        elif "none" in same_site or "no_restriction" in same_site:
+            cookie["sameSite"] = "None"
+
+        if "httpOnly" in c:
+            cookie["httpOnly"] = bool(c["httpOnly"])
+        if "secure" in c:
+            cookie["secure"] = bool(c["secure"])
+
+        exp = c.get("expires") or c.get("expirationDate")
+        if exp is not None:
+            try:
+                cookie["expires"] = float(exp)
+            except (ValueError, TypeError):
+                pass
+
+        sanitized.append(cookie)
+    return sanitized
+
 def check_login():
     parser = argparse.ArgumentParser()
     parser.add_argument("--user_data", type=str, default="./user_data")
@@ -30,7 +76,6 @@ def check_login():
     output_path = str(Path(args.output).resolve())
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    # Paksa Headless = True pada Linux agar tidak membutuhkan GUI / X-Server
     is_headless = True if sys.platform != 'win32' else False
 
     storage_state_file = Path("state.json")
@@ -63,14 +108,21 @@ def check_login():
                 try:
                     with open(storage_state_path, "r", encoding="utf-8") as sf:
                         state_data = json.load(sf)
-                        if "cookies" in state_data and state_data["cookies"]:
-                            context.add_cookies(state_data["cookies"])
-                except Exception:
+                        raw_cookies = []
+                        if isinstance(state_data, list):
+                            raw_cookies = state_data
+                        elif isinstance(state_data, dict) and "cookies" in state_data:
+                            raw_cookies = state_data["cookies"]
+
+                        if raw_cookies:
+                            clean_cookies = sanitize_cookies_for_playwright(raw_cookies)
+                            context.add_cookies(clean_cookies)
+                except Exception as ex:
                     pass
 
             page = context.new_page()
             page.goto("https://business.facebook.com/latest/home", wait_until="domcontentloaded")
-            time.sleep(4)
+            time.sleep(5)
 
             current_url = page.url
             result["url"] = current_url

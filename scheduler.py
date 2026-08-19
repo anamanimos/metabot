@@ -29,6 +29,51 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 # UTILITY & DATABASE SYNC FUNCTIONS (MYSQL & SQLITE)
 # ============================================================================
 
+def sanitize_cookies_for_playwright(raw_cookies):
+    """Membersihkan format cookie dari Cookie-Editor agar 100% kompatibel dengan Playwright"""
+    sanitized = []
+    for c in raw_cookies:
+        if not isinstance(c, dict):
+            continue
+        name = c.get("name")
+        value = c.get("value")
+        if not name or value is None:
+            continue
+
+        domain = c.get("domain", ".facebook.com")
+        if domain.startswith("http://") or domain.startswith("https://"):
+            domain = domain.split("//", 1)[1].split("/")[0]
+
+        cookie = {
+            "name": str(name),
+            "value": str(value),
+            "domain": domain,
+            "path": c.get("path", "/")
+        }
+
+        same_site = str(c.get("sameSite", "")).lower()
+        if "lax" in same_site:
+            cookie["sameSite"] = "Lax"
+        elif "strict" in same_site:
+            cookie["sameSite"] = "Strict"
+        elif "none" in same_site or "no_restriction" in same_site:
+            cookie["sameSite"] = "None"
+
+        if "httpOnly" in c:
+            cookie["httpOnly"] = bool(c["httpOnly"])
+        if "secure" in c:
+            cookie["secure"] = bool(c["secure"])
+
+        exp = c.get("expires") or c.get("expirationDate")
+        if exp is not None:
+            try:
+                cookie["expires"] = float(exp)
+            except (ValueError, TypeError):
+                pass
+
+        sanitized.append(cookie)
+    return sanitized
+
 def log(msg, level="INFO"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     symbols = {"INFO": "ℹ️", "SUCCESS": "✅", "WARN": "⚠️", "ERROR": "❌", "PROCESS": "🚀"}
@@ -269,7 +314,6 @@ def schedule_story_item(page, item):
 
     log(f"Mengunggah {len(prepared_media_files)} file media ke Story Composer...", "PROCESS")
     
-    # Coba trigger tombol Add Photo / Add Media jika ada
     add_media_button_selectors = [
         "text='Add photo'", "text='Tambah foto'",
         "text='Add photo/video'", "text='Tambah foto/video'",
@@ -489,9 +533,16 @@ def main():
             try:
                 with open(storage_state_path, "r", encoding="utf-8") as sf:
                     state_data = json.load(sf)
-                    if "cookies" in state_data and state_data["cookies"]:
-                        context.add_cookies(state_data["cookies"])
-                        log(f"Berhasil meng-impor {len(state_data['cookies'])} cookies sesi dari {storage_state_path}!", "SUCCESS")
+                    raw_cookies = []
+                    if isinstance(state_data, list):
+                        raw_cookies = state_data
+                    elif isinstance(state_data, dict) and "cookies" in state_data:
+                        raw_cookies = state_data["cookies"]
+
+                    if raw_cookies:
+                        clean_cookies = sanitize_cookies_for_playwright(raw_cookies)
+                        context.add_cookies(clean_cookies)
+                        log(f"Berhasil meng-impor {len(clean_cookies)} cookies sesi ter-sanitasi dari {storage_state_path}!", "SUCCESS")
             except Exception as e:
                 log(f"Catatan imbalan cookies state.json: {e}", "WARN")
 
