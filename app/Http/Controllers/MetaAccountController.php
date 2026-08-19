@@ -100,17 +100,45 @@ class MetaAccountController extends Controller
             $account = MetaAccount::findOrFail($id);
 
             $confirmedPortfolios = [
-                'Sevencols',
-                'Arema Style',
-                'Bikin Seragam Kota Malang',
-                'Mahasiswa Malang'
+                [
+                    'portfolio_name' => 'Sevencols',
+                    'asset_name' => 'Sevencols, sevencols',
+                    'asset_type' => 'Halaman Facebook, profil Instagram',
+                    'combined_target' => 'Sevencols - Sevencols, sevencols',
+                ],
+                [
+                    'portfolio_name' => 'Sevencols',
+                    'asset_name' => 'Arema Style, arema_style',
+                    'asset_type' => 'Halaman Facebook, profil Instagram',
+                    'combined_target' => 'Sevencols - Arema Style, arema_style',
+                ],
+                [
+                    'portfolio_name' => 'Bikin Seragam Kota Malang',
+                    'asset_name' => 'Bikin Seragam Kota Malang',
+                    'asset_type' => 'Halaman Facebook',
+                    'combined_target' => 'Bikin Seragam Kota Malang - Bikin Seragam Kota Malang',
+                ],
+                [
+                    'portfolio_name' => 'Mahasiswa Malang',
+                    'asset_name' => 'Mahasiswa Malang',
+                    'asset_type' => 'Halaman Facebook',
+                    'combined_target' => 'Mahasiswa Malang - Mahasiswa Malang',
+                ]
             ];
 
-            foreach ($confirmedPortfolios as $name) {
-                Portfolio::firstOrCreate([
-                    'meta_account_id' => $account->id,
-                    'name' => $name
-                ]);
+            foreach ($confirmedPortfolios as $item) {
+                Portfolio::updateOrCreate(
+                    [
+                        'meta_account_id' => $account->id,
+                        'combined_target' => $item['combined_target']
+                    ],
+                    [
+                        'name' => $item['combined_target'],
+                        'portfolio_name' => $item['portfolio_name'],
+                        'asset_name' => $item['asset_name'],
+                        'asset_type' => $item['asset_type'],
+                    ]
+                );
             }
 
             $basePath = base_path();
@@ -292,7 +320,7 @@ class MetaAccountController extends Controller
                 $cmd = "cd /d \"{$basePath}\" && {$pythonBin} login_meta_account.py --email={$emailArg} --password={$passArg} {$cmdExtra} --user_data={$account->session_folder}";
             } else {
                 $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
-                $cmd = "export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && cd \"{$basePath}\" && {$venvPython} login_meta_account.py --email={$emailArg} --password={$passArg} {$cmdExtra} --user_data={$account->session_folder}";
+                $cmd = "export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && cd \"{$basePath}\" && {$pythonBin} login_meta_account.py --email={$emailArg} --password={$passArg} {$cmdExtra} --user_data={$account->session_folder}";
             }
 
             $output = shell_exec($cmd);

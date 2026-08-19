@@ -64,9 +64,9 @@ class PortfolioController extends Controller
                                     'combined_target' => $combinedTarget
                                 ],
                                 [
-                                    'name' => $p['portfolio_name'] ?? $p['name'] ?? $combinedTarget,
+                                    'name' => $combinedTarget,
                                     'portfolio_name' => $p['portfolio_name'] ?? $p['name'] ?? null,
-                                    'asset_name' => $p['asset_name'] ?? null,
+                                    'asset_name' => $p['asset_name'] ?? $p['name'] ?? null,
                                     'asset_type' => $p['asset_type'] ?? null,
                                 ]
                             );
