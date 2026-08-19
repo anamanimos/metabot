@@ -37,25 +37,44 @@ def open_visual_browser():
         with sync_playwright() as p:
             print("Membuka jendela browser Chromium visual di layar Windows...", file=sys.stderr)
             
-            # Selalu gunakan headless=False agar jendela browser muncul di layar pengguna
-            context = p.chromium.launch_persistent_context(
-                user_data_dir=user_data_dir,
-                headless=False,
-                viewport={"width": 1280, "height": 850},
-                args=[
+            launch_args = {
+                "user_data_dir": user_data_dir,
+                "headless": False,
+                "viewport": {"width": 1280, "height": 850},
+                "args": [
                     "--start-maximized",
                     "--disable-blink-features=AutomationControlled"
                 ]
-            )
+            }
+
+            # Pada Windows, gunakan Google Chrome asli jika terpasang untuk kompatibilitas terbaik
+            if sys.platform == 'win32':
+                try:
+                    context = p.chromium.launch_persistent_context(channel="chrome", **launch_args)
+                except Exception:
+                    context = p.chromium.launch_persistent_context(**launch_args)
+            else:
+                context = p.chromium.launch_persistent_context(**launch_args)
+
+            # Impor cookie dari state.json jika sudah pernah di-export
+            state_file = Path("state.json")
+            if state_file.exists():
+                try:
+                    with open(state_file, "r", encoding="utf-8") as sf:
+                        st = json.load(sf)
+                        if isinstance(st, dict) and "cookies" in st:
+                            context.add_cookies(st["cookies"])
+                except Exception:
+                    pass
 
             page = context.pages[0] if context.pages else context.new_page()
             page.goto("https://business.facebook.com/latest/home")
 
-            print("Menunggu pengguna melakukan login / verifikasi Passkey di browser...", file=sys.stderr)
+            print("Menunggu pengguna melakukan login di jendela browser ini...", file=sys.stderr)
 
-            # Tunggu hingga URL mengarah ke business.facebook.com tanpa kata 'login' (maksimal 5 menit / 300 detik)
+            # Tunggu hingga URL mengarah ke business.facebook.com tanpa kata 'login' (maksimal 10 menit / 600 detik)
             is_logged_in = False
-            for _ in range(150):
+            for _ in range(300):
                 try:
                     time.sleep(2)
                     current_url = page.url
@@ -69,9 +88,8 @@ def open_visual_browser():
                 result["success"] = True
                 result["message"] = "Login Meta Berhasil! Sesi otentikasi telah disimpan secara permanen."
 
-                # Simpan state.json untuk backup
+                # Simpan state.json untuk otentikasi abadi
                 state = context.storage_state()
-                state_file = Path("state.json")
                 with open(state_file, "w", encoding="utf-8") as sf:
                     json.dump(state, sf, indent=2, ensure_ascii=False)
             else:
