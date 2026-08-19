@@ -214,61 +214,101 @@ def download_media_if_url(media_path, custom_filename=None, temp_dir="./temp_med
             raise FileNotFoundError(f"File media lokal tidak ditemukan pada sistem: '{media_path}'")
         return str(local_path)
 
-def select_portfolio(page, target_portfolio_name):
-    """Memilih Portofolio Meta Business Suite dari dropdown"""
-    log(f"Mencari dan memilih Portofolio Target: '{target_portfolio_name}'...", "PROCESS")
+# ============================================================================
+# NEW ROBUST PORTFOLIO SEARCH, VERIFICATION & COMPOSER FUNCTIONS
+# ============================================================================
+
+def select_portfolio_via_search(page, portfolio_name, timeout_ms=15000):
+    """Pilih portofolio bisnis target menggunakan fitur pencarian 'Cari aset bisnis' di dalam dropdown portofolio, bukan scroll manual."""
+    log(f"Membuka dropdown portofolio untuk mencari: '{portfolio_name}'...", "INFO")
     
-    dropdown_triggers = [
-        "div[role='button']:has-text('Aroma Style')",
-        "button:has-text('Aroma Style')",
-        "div[aria-haspopup='listbox']",
-        "div[data-testid='business-selector-trigger']",
-        "header div[role='button']",
-    ]
+    # 1. Klik tombol dropdown portofolio di kiri atas (header)
+    try:
+        portfolio_dropdown_btn = page.locator("div[aria-haspopup='listbox'], button[aria-haspopup='listbox']").first
+        portfolio_dropdown_btn.click(timeout=5000)
+    except Exception:
+        page.locator("header div[role='button']").first.click(timeout=5000)
+        
+    page.wait_for_timeout(1500)
     
-    trigger_found = False
-    for selector in dropdown_triggers:
+    # 2. Cari & isi search box di dalam dropdown
+    try:
+        search_box = page.get_by_placeholder("Cari aset bisnis").first
+        search_box.wait_for(state="visible", timeout=5000)
+        search_box.click()
+        search_box.fill(portfolio_name)
+        page.wait_for_timeout(1500)  # tunggu hasil filter muncul
+    except Exception as e:
+        log(f"Gagal menemukan/mengisi kotak pencarian 'Cari aset bisnis': {e}", "WARN")
+        return False
+    
+    log(f"Mencari hasil filter untuk '{portfolio_name}'...", "INFO")
+    
+    # 3. Cari item hasil filter yang cocok (radio button / list item)
+    try:
+        result_item = page.get_by_text(portfolio_name, exact=False).first
+        result_item.wait_for(state="visible", timeout=5000)
+        result_item.click(timeout=5000)
+        page.wait_for_timeout(2000)
+        log(f"Item portofolio '{portfolio_name}' berhasil diklik dari hasil pencarian.", "SUCCESS")
+        return True
+    except Exception as e:
+        log(f"Gagal menemukan/mengklik hasil pencarian untuk '{portfolio_name}': {e}", "WARN")
+        return False
+
+def verify_active_portfolio(page, expected_name, timeout_ms=10000):
+    """Baca teks tombol portofolio aktif di header kiri atas, pastikan mengandung nama target. Return True/False, JANGAN mengasumsikan sukses jika gagal."""
+    start = time.time()
+    while (time.time() - start) * 1000 < timeout_ms:
         try:
-            el = page.locator(selector).first
-            if el.is_visible(timeout=2000):
-                el.click()
-                log(f"Menu dropdown Portofolio diklik via selector: {selector}", "SUCCESS")
-                trigger_found = True
-                break
-        except Exception:
-            continue
-            
-    if not trigger_found:
-        try:
-            page.locator("header").locator("div[role='button']").first.click(timeout=3000)
-            log("Klik fallback dropdown header portofolio.", "INFO")
+            header_btn = page.locator("div[aria-haspopup='listbox'], button[aria-haspopup='listbox']").first
+            current_text = header_btn.inner_text().strip()
+            log(f"Portofolio aktif saat ini terbaca: '{current_text}'", "INFO")
+            if expected_name.lower() in current_text.lower():
+                log(f"Portofolio '{expected_name}' TERVERIFIKASI aktif.", "SUCCESS")
+                return True
         except Exception as e:
-            log(f"Dropdown portofolio mungkin sudah terbuka atau tidak ditemukan: {e}", "WARN")
-
-    time.sleep(1.5)
-
-    item_selectors = [
-        f"text=\"{target_portfolio_name}\"",
-        f"div[role='option']:has-text('{target_portfolio_name}')",
-        f"li:has-text('{target_portfolio_name}')",
-        f"span:has-text('{target_portfolio_name}')"
-    ]
+            log(f"Gagal membaca header portofolio: {e}", "WARN")
+        page.wait_for_timeout(1000)
     
-    selected = False
-    for sel in item_selectors:
+    log(f"GAGAL memverifikasi portofolio '{expected_name}' aktif setelah timeout.", "ERROR")
+    try:
+        page.screenshot(path="./debug_portfolio_verify_fail.png", full_page=True)
+    except Exception:
+        pass
+    return False
+
+def open_story_composer_via_button(page, timeout_ms=10000):
+    """Klik tombol 'Buat cerita' di Home, tunggu composer terbuka dengan asset_id yang benar terisi otomatis di URL."""
+    log("Mengklik tombol 'Buat cerita' di Halaman Beranda...", "INFO")
+    try:
+        buat_cerita_btn = page.get_by_text("Buat cerita", exact=True).first
+        buat_cerita_btn.click(timeout=5000)
+        page.wait_for_timeout(3000)
+    except Exception as e:
+        log(f"Gagal mengklik tombol 'Buat cerita': {e}", "WARN")
+        return False
+    
+    current_url = page.url
+    log(f"URL setelah klik 'Buat cerita': {current_url}", "INFO")
+    
+    if "asset_id=" in current_url and "asset_id=&" not in current_url and not current_url.endswith("asset_id="):
+        log("Composer terbuka dengan asset_id valid.", "SUCCESS")
+    else:
+        log("PERINGATAN: asset_id masih kosong/tidak valid di URL composer!", "WARN")
+    
+    # Verifikasi composer benar-benar terbuka (bukan masih di Home)
+    try:
+        page.locator("text='Tambahkan foto/video', text='Tambah foto/video', text='Add photo/video', text='Tambah foto', text='Add photo'").first.wait_for(state="visible", timeout=timeout_ms)
+        log("Story Composer terkonfirmasi terbuka (tombol 'Tambah foto/video' terlihat).", "SUCCESS")
+        return True
+    except PlaywrightTimeoutError:
+        log("Story Composer TIDAK terbuka dengan benar setelah klik 'Buat cerita'.", "ERROR")
         try:
-            item = page.locator(sel).first
-            if item.is_visible(timeout=3000):
-                item.click()
-                log(f"Portofolio '{target_portfolio_name}' berhasil dipilih!", "SUCCESS")
-                selected = True
-                time.sleep(3)
-                break
+            page.screenshot(path="./debug_composer_not_open.png", full_page=True)
         except Exception:
-            continue
-            
-    if not selected:
-        log(f"Portofolio '{target_portfolio_name}' tidak dapat diklik. Mengasumsikan portofolio aktif adalah '{target_portfolio_name}'.", "WARN")
+            pass
+        return False
 
 def schedule_story_item(page, item):
     item_id = item.get("id") or item.get("item_code") or "N/A"
@@ -280,7 +320,7 @@ def schedule_story_item(page, item):
     if not media_paths and item.get("mediaPath"):
         media_paths = [item.get("mediaPath")]
     elif not media_paths and item.get("media_path"):
-        media_paths = [item.get("media_path")]
+        media_paths = [item.get("mediaPath")]
 
     log(f"=== MEMPROSES SCHEDULE ITEM [{item_id}] ===", "PROCESS")
     log(f"Target Portofolio: {portfolio_name} | Tanggal: {raw_date} | Jam: {time_str}", "INFO")
@@ -293,26 +333,37 @@ def schedule_story_item(page, item):
         local_file = download_media_if_url(m_path, custom_filename=f"{item_id}_{idx+1}.jpg")
         prepared_media_files.append(local_file)
 
-    composer_url = "https://business.facebook.com/latest/composer?asset_id=&context_ref=REDESIGN_HOME_PAGE_SCHEDULE_POST_BUTTON&is_story=true&nav_ref=bm_home_schedule_post_button"
-    log(f"Membuka Meta Story Composer di browser visual: {composer_url}", "INFO")
-    page.goto(composer_url, wait_until="networkidle")
-    time.sleep(4)
+    # 1. Navigasi ke Meta Business Suite Home
+    log("Navigasi ke Meta Business Suite Home...", "INFO")
+    page.goto("https://business.facebook.com/latest/home", wait_until="domcontentloaded")
+    time.sleep(3)
 
     if "login" in page.url.lower() or "facebook.com/login" in page.url.lower():
         log("⚠️ Sesi browser belum login ke Facebook! Silakan login Meta Business Suite di profil user_data terlebih dahulu.", "ERROR")
         raise RuntimeError("Browser belum ter-login ke Meta Business Suite (Pengalihan ke Halaman Login Terdeteksi). Silakan login terlebih dahulu.")
 
+    # 2. Pilih Portofolio via Search Box & Verifikasi
     if portfolio_name:
-        try:
-            select_portfolio(page, portfolio_name)
-        except Exception as e:
-            log(f"Gagal memilih portofolio secara otomatis: {e}", "WARN")
+        log(f"Melakukan pemilihan portofolio via pencarian: '{portfolio_name}'...", "PROCESS")
+        portfolio_selected = select_portfolio_via_search(page, portfolio_name)
+        if not portfolio_selected:
+            raise RuntimeError(f"Gagal memilih portofolio '{portfolio_name}' via search box.")
 
+        verified = verify_active_portfolio(page, portfolio_name)
+        if not verified:
+            raise RuntimeError(f"Portofolio '{portfolio_name}' tidak terverifikasi aktif setelah dipilih. Proses dihentikan (TIDAK mengasumsikan sukses).")
+
+    # 3. Buka Story Composer via Tombol 'Buat cerita' di Home
+    composer_opened = open_story_composer_via_button(page)
+    if not composer_opened:
+        raise RuntimeError("Story Composer gagal terbuka via tombol 'Buat cerita'.")
+
+    # 4. Unggah File Media ke Story Composer
     log(f"Mengunggah {len(prepared_media_files)} file media ke Story Composer...", "PROCESS")
     
     add_media_button_selectors = [
         "text='Add photo'", "text='Tambah foto'",
-        "text='Add photo/video'", "text='Tambah foto/video'",
+        "text='Add photo/video'", "text='Tambah foto/video'", "text='Tambahkan foto/video'",
         "text='Add Media'", "text='Tambah Media'",
         "div[role='button']:has-text('Add photo')",
         "div[role='button']:has-text('Tambah foto')",
@@ -364,6 +415,7 @@ def schedule_story_item(page, item):
     log("Menunggu proses preview media selesai diunggah di browser...", "INFO")
     time.sleep(8)
 
+    # 5. Opsi Penjadwalan & Waktu
     log("Mengaktifkan opsi 'Schedule' (Jadwalkan)...", "PROCESS")
     
     schedule_radio_selectors = [
