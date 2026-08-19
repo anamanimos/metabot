@@ -22,10 +22,81 @@ def log(msg, level="INFO"):
     symbol = symbols.get(level, "[LOG]")
     print(f"[{timestamp}] {symbol} [{level}] {msg}")
 
-def scan_all_portfolios_and_assets(page):
-    """Pindai struktur 2-tingkat: grup portofolio (sidebar kiri) dan aset di dalamnya (panel kanan setelah grup diklik). Return list of dict."""
+SECTION_HEADER_BLACKLIST = [
+    "portofolio bisnis", "akun anda", "aset bisnis", 
+    "cari aset bisnis", "buat portofolio bisnis"
+]
+
+def scan_currently_active_panel(page, top_button_locator):
+    """Baca nama entitas aktif dari tombol dropdown header (misal 'NB Tour Organizer'), lalu pindai aset yang SUDAH TAMPIL di panel kanan tanpa perlu klik apapun."""
+    try:
+        active_name = top_button_locator.inner_text().strip()
+        active_name = active_name.split(",")[0].split("\n")[0].strip()
+        log(f"Entitas aktif terdeteksi dari tombol header: '{active_name}'", "INFO")
+    except Exception:
+        active_name = "NB Tour Organizer"
+    
     results = []
-    seen_keys = set()
+    asset_items = page.locator("div").filter(has_text="Halaman Facebook").all()
+    asset_items += page.locator("div").filter(has_text="Profil Instagram").all()
+    asset_items += page.locator("div").filter(has_text="profil Instagram").all()
+    
+    seen = set()
+    for asset in asset_items:
+        try:
+            text = asset.inner_text().strip()
+            lines = [l.strip() for l in text.split("\n") if l.strip()]
+            if len(lines) >= 2:
+                asset_name, asset_type = lines[0], lines[1]
+                key = f"{asset_name}|{asset_type}"
+                if key not in seen and ("Halaman Facebook" in asset_type or "Profil Instagram" in asset_type or "profil Instagram" in asset_type):
+                    seen.add(key)
+                    results.append({
+                        "portfolio_name": active_name,
+                        "asset_name": asset_name,
+                        "asset_type": asset_type,
+                        "combined_target": f"{active_name} - {asset_name}"
+                    })
+                    log(f"  -> [PANEL AKTIF DEFAULT] Aset ditemukan: '{asset_name}' ({asset_type})", "SUCCESS")
+        except Exception:
+            continue
+    return results
+
+def deduplicate_results(results):
+    """Deduplikasi global berbasis (asset_name, asset_type)"""
+    deduped = []
+    seen_assets = {}
+
+    for item in results:
+        p_name = item.get("portfolio_name", "").strip()
+        a_name = item.get("asset_name", "").strip()
+        a_type = item.get("asset_type", "").strip()
+
+        if p_name.lower() in SECTION_HEADER_BLACKLIST:
+            log(f"Deduplikasi: Mengabaikan item dengan header section generik '{p_name}'", "INFO")
+            continue
+
+        asset_key = f"{a_name.lower()}|{a_type.lower()}"
+
+        if asset_key not in seen_assets:
+            seen_assets[asset_key] = item
+            deduped.append(item)
+        else:
+            existing_item = seen_assets[asset_key]
+            existing_p = existing_item.get("portfolio_name", "")
+            if existing_p.lower() in ["choirul anam", "unknown_active", "portofolio bisnis"] and p_name.lower() not in ["choirul anam", "unknown_active", "portofolio bisnis"]:
+                log(f"Deduplikasi: Memperbarui portofolio untuk aset '{a_name}' dari '{existing_p}' -> '{p_name}'", "INFO")
+                seen_assets[asset_key] = item
+                for idx, d in enumerate(deduped):
+                    if f"{d['asset_name'].strip().lower()}|{d['asset_type'].strip().lower()}" == asset_key:
+                        deduped[idx] = item
+                        break
+
+    return deduped
+
+def scan_all_portfolios_and_assets(page):
+    """Pindai struktur 2-tingkat: panel aktif default, grup portofolio (sidebar kiri), dan aset di dalamnya (panel kanan setelah grup diklik)."""
+    results = []
     
     log("Navigasi ke Meta Business Suite Home...", "INFO")
     page.goto("https://business.facebook.com/latest/home", wait_until="domcontentloaded")
@@ -43,18 +114,23 @@ def scan_all_portfolios_and_assets(page):
             return []
 
     # Buka dropdown portofolio
+    top_button = page.locator("div[aria-haspopup='listbox'], button[aria-haspopup='listbox']").first
     try:
-        dropdown_btn = page.locator("div[aria-haspopup='listbox'], button[aria-haspopup='listbox']").first
-        dropdown_btn.click(timeout=5000)
+        top_button.click(timeout=5000)
     except Exception:
         try:
-            page.locator("header div[role='button']").first.click(timeout=5000)
+            top_button = page.locator("header div[role='button']").first
+            top_button.click(timeout=5000)
         except Exception:
             pass
 
     page.wait_for_timeout(2000)
+
+    # 1. SCAN PANEL KANAN YANG SUDAH TERBUKA DEFAULT
+    initial_results = scan_currently_active_panel(page, top_button)
+    results.extend(initial_results)
     
-    # Ambil semua item grup portofolio di sidebar kiri (elemen yang punya subtitle mengandung "aset bisnis")
+    # 2. AMBIL SEMUA ITEM GRUP PORTOFOLIO DI SIDEBAR KIRI
     group_items = page.locator("div").filter(has_text="aset bisnis").all()
     log(f"Ditemukan {len(group_items)} kandidat grup portofolio.", "INFO")
     
@@ -66,7 +142,11 @@ def scan_all_portfolios_and_assets(page):
             lines = [l.strip() for l in text.split("\n") if l.strip()]
             if len(lines) >= 2 and "aset bisnis" in lines[-1].lower():
                 group_name = lines[0]
-                if group_name not in seen_groups and len(group_name) < 60 and not any(kw in group_name.lower() for kw in ['privasi', 'beranda', 'pengaturan', 'akun anda']):
+                if group_name.strip().lower() in SECTION_HEADER_BLACKLIST:
+                    log(f"Melewati '{group_name}' karena termasuk header section, bukan nama grup asli.", "INFO")
+                    continue
+
+                if group_name not in seen_groups and len(group_name) < 60:
                     seen_groups.add(group_name)
                     group_names.append(group_name)
         except Exception:
@@ -74,7 +154,7 @@ def scan_all_portfolios_and_assets(page):
     
     log(f"Nama grup portofolio unik yang terdeteksi: {group_names}", "INFO")
     
-    # Untuk setiap grup, klik dan pindai aset di panel kanan
+    # 3. KLIKS KANAN TIAP GRUP & PINDAI ASET DI PANEL KANAN
     for group_name in group_names:
         try:
             log(f"Memindai aset di dalam grup '{group_name}'...", "INFO")
@@ -95,9 +175,7 @@ def scan_all_portfolios_and_assets(page):
                         asset_name = lines[0]
                         asset_type = lines[1]
                         combined_target = f"{group_name} - {asset_name}"
-                        key = combined_target
-                        if key not in seen_keys and ("Halaman Facebook" in asset_type or "Profil Instagram" in asset_type or "profil Instagram" in asset_type):
-                            seen_keys.add(key)
+                        if "Halaman Facebook" in asset_type or "Profil Instagram" in asset_type or "profil Instagram" in asset_type:
                             results.append({
                                 "portfolio_name": group_name,
                                 "asset_name": asset_name,
@@ -112,9 +190,12 @@ def scan_all_portfolios_and_assets(page):
             log(f"Gagal memindai grup '{group_name}': {e}", "WARN")
             continue
     
-    if not results:
+    # 4. DEDUPLIKASI GLOBAL BASE ON (ASSET_NAME, ASSET_TYPE)
+    final_results = deduplicate_results(results)
+
+    if not final_results:
         log("Menggunakan fallback aset terkonfirmasi...", "WARN")
-        results = [
+        final_results = [
             {
                 "portfolio_name": "Sevencols",
                 "asset_name": "Sevencols, sevencols",
@@ -147,7 +228,7 @@ def scan_all_portfolios_and_assets(page):
             }
         ]
 
-    return results
+    return final_results
 
 def fetch_portfolios_from_meta():
     parser = argparse.ArgumentParser(description="Fetch Meta Business Portfolios")
