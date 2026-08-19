@@ -37,7 +37,7 @@ class PortfolioController extends Controller
             $initialMtime = file_exists($jsonFile) ? filemtime($jsonFile) : 0;
 
             if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                $cmd = "start \"Fetch Aset Bisnis Meta\" cmd /k \"cd /d \"{$basePath}\" && {$pythonBin} fetch_portfolios.py --user_data={$sessionFolder}\"";
+                $cmd = "start \"Fetch Aset Bisnis Meta\" cmd /c \"cd /d \"{$basePath}\" && {$pythonBin} fetch_portfolios.py --user_data={$sessionFolder}\"";
                 pclose(popen($cmd, "r"));
             } else {
                 exec("{$pythonBin} {$basePath}/fetch_portfolios.py --user_data={$sessionFolder} &");
@@ -90,5 +90,13 @@ class PortfolioController extends Controller
             }
             return redirect()->back()->with('error', 'Gagal memindai aset bisnis: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Alias method untuk kompatibilitas route portfolios/fetch
+     */
+    public function fetchPortfolios(Request $request)
+    {
+        return $this->fetchFromMeta($request);
     }
 }
