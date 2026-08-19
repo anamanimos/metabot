@@ -427,10 +427,16 @@ def main():
 
     log(f"Menggunakan profil sesi browser: {user_data_dir}", "INFO")
 
+    # Deteksi headless secara otomatis: jika tidak ada DISPLAY (di Linux server), gunakan headless=True
+    is_headless = False
+    if sys.platform != 'win32' and not os.environ.get("DISPLAY"):
+        is_headless = True
+        log("DISPLAY tidak ditemukan. Menggunakan mode Headless=True pada Linux server.", "INFO")
+
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(
             user_data_dir=user_data_dir,
-            headless=False,
+            headless=is_headless,
             viewport={"width": 1280, "height": 900},
             args=[
                 "--disable-blink-features=AutomationControlled",
