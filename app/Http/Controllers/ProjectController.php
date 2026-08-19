@@ -388,7 +388,7 @@ class ProjectController extends Controller
             $paths = [];
             for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
                 $pickedMedia = $mediaFiles[$imgIdx % $mediaFiles->count()];
-                $paths[] = asset($pickedMedia->file_path);
+                $paths[] = $pickedMedia->file_path;
             }
 
             $primaryPath = $paths[0] ?? '';
@@ -435,7 +435,7 @@ class ProjectController extends Controller
             $paths = [];
             for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
                 $pickedMedia = $mediaFiles[$mediaIndex % $mediaFiles->count()];
-                $paths[] = asset($pickedMedia->file_path);
+                $paths[] = $pickedMedia->file_path;
                 $mediaIndex++;
             }
 

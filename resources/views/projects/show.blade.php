@@ -5,98 +5,91 @@
 @section('content')
 <div class="space-y-6">
 
-    <!-- Breadcrumb & Navigation -->
-    <div class="flex items-center justify-between text-xs text-gray-400">
-        <div class="flex items-center space-x-2">
-            <a href="{{ route('projects.index') }}" class="hover:text-white transition flex items-center space-x-1">
-                <i class="fa-solid fa-folder-open"></i>
-                <span>Project Campaigns</span>
-            </a>
-            <span>/</span>
-            <span class="text-white font-semibold">{{ $project->name }}</span>
+    <!-- Breadcrumb & Header Navigation -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-gray-400 mb-1">
+                <a href="{{ route('projects.index') }}" class="hover:text-white transition flex items-center space-x-1">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span>Project Campaigns</span>
+                </a>
+                <span>/</span>
+                <span class="text-white font-semibold">{{ $project->name }}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-white flex items-center space-x-3">
+                <span>{{ $project->name }}</span>
+                <span class="px-2.5 py-0.5 text-xs font-extrabold rounded-full {{ $project->status === 'active' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800' }}">
+                    {{ strtoupper($project->status) }}
+                </span>
+                <span class="px-2.5 py-0.5 text-xs font-extrabold rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800">
+                    {{ strtoupper($project->repeat_type) }}
+                </span>
+            </h1>
         </div>
 
-        <a href="{{ route('projects.edit', $project->id) }}" 
-           class="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white font-semibold rounded-xl border border-gray-700 transition flex items-center space-x-1.5">
-            <i class="fa-solid fa-pen-to-square text-indigo-400"></i>
-            <span>Edit Project</span>
-        </a>
+        <div class="flex items-center space-x-3">
+            <a href="{{ route('projects.edit', $project->id) }}" 
+               class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold rounded-xl border border-gray-700 transition flex items-center space-x-1.5 shadow">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Edit Project</span>
+            </a>
+
+            <button onclick="toggleProjectStatus({{ $project->id }})" 
+                    class="px-4 py-2 text-xs font-semibold rounded-xl transition flex items-center space-x-1.5 shadow {{ $project->status === 'active' ? 'bg-amber-900/40 text-amber-300 border border-amber-800 hover:bg-amber-800/60' : 'bg-emerald-900/40 text-emerald-300 border border-emerald-800 hover:bg-emerald-800/60' }}">
+                <i class="fa-solid {{ $project->status === 'active' ? 'fa-pause' : 'fa-play' }}"></i>
+                <span>{{ $project->status === 'active' ? 'Pause Campaign' : 'Aktifkan Campaign' }}</span>
+            </button>
+        </div>
     </div>
 
-    <!-- Highlight Header Card -->
-    <div class="card-dark rounded-2xl p-6 shadow-xl border border-gray-800 space-y-6 relative overflow-hidden">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div class="space-y-2">
-                <div class="flex items-center space-x-3">
-                    <h1 class="text-2xl font-bold text-white">{{ $project->name }}</h1>
-                    <span class="px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider {{ $project->status === 'active' ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700' : 'bg-amber-900/60 text-amber-300 border border-amber-700' }}">
-                        {{ $project->status }}
-                    </span>
-                </div>
-                <p class="text-sm text-gray-400">
-                    Target Aset: <strong class="text-indigo-300 font-semibold">{{ $project->portfolio_name }}</strong> &bull; 
-                    Akun: <strong class="text-gray-200 font-semibold">{{ $project->metaAccount?->account_name ?? 'Akun Utama' }}</strong>
-                </p>
+    <!-- Stats & Schedule Status Banner -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Badge Terjadwal Sampai Kapan -->
+        <div class="card-dark p-6 rounded-2xl border border-indigo-900/50 bg-gradient-to-br from-gray-900 to-indigo-950/40 flex items-center space-x-4 shadow-lg">
+            <div class="p-4 bg-indigo-600 text-white rounded-2xl shadow-lg">
+                <i class="fa-solid fa-calendar-check text-2xl"></i>
             </div>
-
-            <!-- Furthest Schedule Date Badge -->
-            <div class="bg-gradient-to-br from-indigo-900/80 to-purple-900/80 border border-indigo-700/60 p-4 rounded-2xl flex items-center space-x-4 shadow-lg">
-                <div class="p-3 bg-indigo-600 text-white rounded-xl text-2xl shadow">
-                    <i class="fa-solid fa-calendar-check"></i>
-                </div>
-                <div>
-                    <span class="text-[11px] font-semibold uppercase tracking-wider text-indigo-300">Terjadwal Sampai Tanggal:</span>
-                    <h3 class="text-xl font-extrabold text-white mt-0.5">{{ $furthestDateFormatted }}</h3>
-                    <p class="text-xs text-indigo-200 mt-0.5">{{ $pendingCount }} Hari Antrean PENDING Aktif</p>
-                </div>
+            <div>
+                <p class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Terjadwal Sampai Tanggal:</p>
+                <h3 class="text-xl font-extrabold text-white mt-0.5">{{ $furthestDateFormatted }}</h3>
+                <p class="text-[11px] text-indigo-400/80 mt-1 font-medium">
+                    {{ $pendingCount }} Hari Antrean PENDING Aktif
+                </p>
             </div>
         </div>
 
-        <!-- Project Rules Specs -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-800 text-xs">
-            <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-800">
-                <span class="text-gray-500 block">Jam Tayang:</span>
-                <p class="font-bold text-white text-sm mt-0.5"><i class="fa-regular fa-clock text-indigo-400 mr-1.5"></i>{{ $project->target_time }} WIB</p>
+        <div class="card-dark p-5 rounded-2xl flex items-center justify-between shadow">
+            <div>
+                <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Target Aset Meta</p>
+                <h3 class="text-lg font-bold text-white mt-1">{{ $project->portfolio_name }}</h3>
+                <p class="text-xs text-gray-500 mt-0.5">{{ $project->metaAccount?->account_name ?? 'Akun Utama' }}</p>
             </div>
-
-            <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-800">
-                <span class="text-gray-500 block">Mode Posting:</span>
-                <p class="font-bold text-white text-sm mt-0.5"><i class="fa-solid fa-images text-indigo-400 mr-1.5"></i>{{ $project->images_per_post }} Gambar / Story</p>
+            <div class="p-3 bg-purple-900/40 text-purple-400 rounded-xl">
+                <i class="fa-solid fa-briefcase text-xl"></i>
             </div>
+        </div>
 
-            <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-800">
-                <span class="text-gray-500 block">Kecualikan Hari:</span>
-                <p class="font-bold text-white text-sm mt-0.5">
-                    @php
-                        $dayNames = [0 => 'Minggu', 1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu'];
-                        $exDays = $project->exclude_days ?? [];
-                    @endphp
-                    @if(empty($exDays))
-                        Tidak ada
-                    @else
-                        {{ implode(', ', array_map(fn($d) => $dayNames[$d] ?? $d, $exDays)) }}
-                    @endif
-                </p>
+        <div class="card-dark p-5 rounded-2xl flex items-center justify-between shadow">
+            <div>
+                <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Jam Tayang Harian</p>
+                <h3 class="text-lg font-bold text-indigo-300 mt-1"><i class="fa-regular fa-clock mr-1"></i>{{ $project->target_time }} WIB</h3>
+                <p class="text-xs text-gray-500 mt-0.5">{{ $completedCount }} Story Telah Tayang</p>
             </div>
-
-            <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-800">
-                <span class="text-gray-500 block">Total Pool Media:</span>
-                <p class="font-bold text-white text-sm mt-0.5"><i class="fa-solid fa-photo-film text-indigo-400 mr-1.5"></i>{{ $project->mediaFiles->count() }} File</p>
+            <div class="p-3 bg-blue-900/40 text-blue-400 rounded-xl">
+                <i class="fa-solid fa-regular fa-clock text-xl"></i>
             </div>
         </div>
     </div>
 
     <!-- Media Pool Gallery Section -->
-    <div class="card-dark rounded-2xl p-6 space-y-4 shadow-xl border border-gray-800">
-        <div class="flex items-center justify-between">
+    <div class="card-dark rounded-2xl p-6 shadow-xl border border-gray-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
             <h2 class="text-lg font-bold text-white flex items-center space-x-2">
-                <i class="fa-solid fa-images text-indigo-400"></i>
-                <span>Galeri Media Pool Project</span>
+                <i class="fa-solid fa-photo-film text-indigo-400"></i>
+                <span>Galeri Media Pool Project ({{ $project->mediaFiles->count() }} File)</span>
             </h2>
-
-            <button onclick="openAddMediaModal()" 
-                    class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white font-semibold text-xs rounded-xl border border-gray-700 transition flex items-center space-x-1.5">
-                <i class="fa-solid fa-plus text-indigo-400"></i>
+            <button onclick="openAddMediaModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow flex items-center space-x-1.5">
+                <i class="fa-solid fa-plus"></i>
                 <span>Tambah Media Baru</span>
             </button>
         </div>
@@ -141,11 +134,11 @@
                             <td class="px-6 py-4 font-mono font-semibold text-white text-xs">{{ $item->item_code }}</td>
                             <td class="px-6 py-4">
                                 @php
-                                    $paths = $item->media_paths ?? [$item->media_path];
+                                    $urls = $item->media_urls;
                                 @endphp
                                 <div class="flex items-center space-x-1">
-                                    @foreach($paths as $p)
-                                        <img src="{{ asset($p) }}" class="w-9 h-9 object-cover rounded-lg border border-gray-700 shadow-sm">
+                                    @foreach($urls as $u)
+                                        <img src="{{ $u }}" class="w-9 h-9 object-cover rounded-lg border border-gray-700 shadow-sm">
                                     @endforeach
                                 </div>
                             </td>
@@ -178,8 +171,8 @@
     <div class="card-dark w-full max-w-md rounded-2xl shadow-2xl border border-gray-800 p-6 space-y-5 relative">
         <div class="flex items-center justify-between border-b border-gray-800 pb-3">
             <h3 class="text-lg font-bold text-white flex items-center space-x-2">
-                <i class="fa-solid fa-photo-film text-indigo-400"></i>
-                <span>Tambah Media Baru ke Project</span>
+                <i class="fa-solid fa-plus-circle text-indigo-400"></i>
+                <span>Tambah Media Pool Baru</span>
             </h3>
             <button onclick="closeAddMediaModal()" class="text-gray-400 hover:text-white transition">
                 <i class="fa-solid fa-xmark text-lg"></i>
@@ -188,17 +181,16 @@
 
         <form id="formAddMedia" enctype="multipart/form-data" class="space-y-4">
             <div>
-                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Pilih File Gambar/Video</label>
-                <input type="file" name="media_files[]" multiple required accept="image/*,video/*" 
-                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:outline-none">
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Pilih File Gambar / Video Tambahan</label>
+                <input type="file" name="media_files[]" multiple required accept="image/*,video/*" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
             </div>
 
             <div class="pt-3 border-t border-gray-800 flex justify-end space-x-3">
                 <button type="button" onclick="closeAddMediaModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl text-xs transition">
                     Batal
                 </button>
-                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
-                    <i class="fa-solid fa-upload"></i>
+                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow flex items-center space-x-1.5">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
                     <span>Unggah Media</span>
                 </button>
             </div>
@@ -234,16 +226,38 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                showAlert('success', 'Berhasil Ditambahkan!', data.message);
-                closeAddMediaModal();
-                setTimeout(() => window.location.reload(), 1500);
+                showAlert('success', 'Berhasil!', data.message);
+                setTimeout(() => window.location.reload(), 1200);
             } else {
-                showAlert('error', 'Gagal Mengunggah', data.message);
+                showAlert('error', 'Gagal', data.message);
             }
         })
         .catch(err => {
             showAlert('error', 'Kesalahan Sistem', err.message);
         });
     });
+
+    function toggleProjectStatus(id) {
+        fetch(`/projects/${id}/toggle-status`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Status Diubah!', data.message);
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                showAlert('error', 'Gagal', data.message);
+            }
+        })
+        .catch(err => {
+            showAlert('error', 'Kesalahan Sistem', err.message);
+        });
+    }
 </script>
 @endsection

@@ -25,6 +25,25 @@ class Schedule extends Model
         'media_paths' => 'array',
     ];
 
+    public function getMediaUrlAttribute(): string
+    {
+        if (empty($this->media_path)) return '';
+        $path = parse_url($this->media_path, PHP_URL_PATH) ?? $this->media_path;
+        return asset($path);
+    }
+
+    public function getMediaUrlsAttribute(): array
+    {
+        $paths = $this->media_paths;
+        if (empty($paths)) {
+            $paths = [$this->media_path];
+        }
+        return array_map(function ($p) {
+            $path = parse_url($p, PHP_URL_PATH) ?? $p;
+            return asset($path);
+        }, $paths);
+    }
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);

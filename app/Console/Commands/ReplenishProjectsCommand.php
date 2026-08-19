@@ -26,7 +26,6 @@ class ReplenishProjectsCommand extends Command
         $replenishedCount = 0;
 
         foreach ($projects as $project) {
-            // Skip project sekali tayang yang sudah pernah ter-create
             if ($project->repeat_type === 'once') {
                 $hasPending = Schedule::where('project_id', $project->id)->where('status', 'pending')->exists();
                 if (!$hasPending) {
@@ -41,12 +40,11 @@ class ReplenishProjectsCommand extends Command
             }
 
             $excludeDays = $project->exclude_days ?? [];
-            $imagesPerPost = $project->images_per_post;
+            $imagesPerPost = $project->images_per_post ?: 1;
 
             for ($i = 0; $i < 29; $i++) {
                 $targetDate = $startDate->copy()->addDays($i);
 
-                // Cek jika mode 'until_date' dan sudah melewati end_date
                 if ($project->repeat_type === 'until_date' && $project->end_date && $targetDate->gt($project->end_date)) {
                     break;
                 }
@@ -71,7 +69,7 @@ class ReplenishProjectsCommand extends Command
 
                 for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
                     $pickedMedia = $mediaFiles[($mediaIndex + $imgIdx) % $mediaFiles->count()];
-                    $paths[] = asset($pickedMedia->file_path);
+                    $paths[] = $pickedMedia->file_path;
                 }
 
                 $primaryPath = $paths[0] ?? '';
@@ -92,7 +90,6 @@ class ReplenishProjectsCommand extends Command
                 $replenishedCount++;
             }
 
-            // Cek jika repeat_type == until_date dan sudah tidak ada slot pending
             if ($project->repeat_type === 'until_date' && $project->end_date && Carbon::today()->gt($project->end_date)) {
                 $hasPending = Schedule::where('project_id', $project->id)->where('status', 'pending')->exists();
                 if (!$hasPending) {

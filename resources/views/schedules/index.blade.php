@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Daftar Antrean Story')
+@section('title', 'Antrean Penjadwalan Story')
 
 @section('content')
 <div class="space-y-6">
 
-    <!-- Header -->
+    <!-- Header & Action Bar -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold text-white flex items-center space-x-2">
@@ -13,55 +13,105 @@
                 <span>Antrean Penjadwalan Story</span>
             </h1>
             <p class="text-sm text-gray-400 mt-1">
-                Daftar antrean rolling buffer 30 hari yang akan dieksekusi otomatis oleh Playwright Bot ke Meta Business Suite.
+                Daftar slot jadwal posting otomatis berbasis **Rolling 29-Day Buffer**.
             </p>
-        </div>
-
-        <!-- Filter Status -->
-        <div class="flex items-center space-x-2 bg-gray-900 p-1.5 rounded-xl border border-gray-800 text-xs">
-            <a href="{{ route('schedules.index', ['status' => 'all']) }}" 
-               class="px-3 py-1.5 rounded-lg font-medium transition {{ $statusFilter === 'all' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white' }}">
-                Semua ({{ $stats['total'] }})
-            </a>
-            <a href="{{ route('schedules.index', ['status' => 'pending']) }}" 
-               class="px-3 py-1.5 rounded-lg font-medium transition {{ $statusFilter === 'pending' ? 'bg-amber-600 text-white' : 'text-gray-400 hover:text-white' }}">
-                Pending ({{ $stats['pending'] }})
-            </a>
-            <a href="{{ route('schedules.index', ['status' => 'completed']) }}" 
-               class="px-3 py-1.5 rounded-lg font-medium transition {{ $statusFilter === 'completed' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white' }}">
-                Completed ({{ $stats['completed'] }})
-            </a>
-            <a href="{{ route('schedules.index', ['status' => 'failed']) }}" 
-               class="px-3 py-1.5 rounded-lg font-medium transition {{ $statusFilter === 'failed' ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white' }}">
-                Failed ({{ $stats['failed'] }})
-            </a>
         </div>
     </div>
 
-    <!-- Table Queue -->
-    <div class="card-dark rounded-2xl overflow-hidden shadow-xl border border-gray-800">
+    <!-- Stats Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card-dark p-5 rounded-2xl flex items-center justify-between shadow">
+            <div>
+                <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Antrean</p>
+                <h3 class="text-2xl font-bold text-white mt-1" id="statTotal">{{ $stats['total'] }}</h3>
+            </div>
+            <div class="p-3 bg-indigo-900/40 text-indigo-400 rounded-xl">
+                <i class="fa-solid fa-list-check text-xl"></i>
+            </div>
+        </div>
+
+        <div class="card-dark p-5 rounded-2xl flex items-center justify-between shadow">
+            <div>
+                <p class="text-xs font-medium text-amber-400 uppercase tracking-wider">Pending (Siap Kirim)</p>
+                <h3 class="text-2xl font-bold text-amber-400 mt-1" id="statPending">{{ $stats['pending'] }}</h3>
+            </div>
+            <div class="p-3 bg-amber-900/40 text-amber-400 rounded-xl">
+                <i class="fa-solid fa-clock text-xl"></i>
+            </div>
+        </div>
+
+        <div class="card-dark p-5 rounded-2xl flex items-center justify-between shadow">
+            <div>
+                <p class="text-xs font-medium text-emerald-400 uppercase tracking-wider">Completed</p>
+                <h3 class="text-2xl font-bold text-emerald-400 mt-1" id="statCompleted">{{ $stats['completed'] }}</h3>
+            </div>
+            <div class="p-3 bg-emerald-900/40 text-emerald-400 rounded-xl">
+                <i class="fa-solid fa-circle-check text-xl"></i>
+            </div>
+        </div>
+
+        <div class="card-dark p-5 rounded-2xl flex items-center justify-between shadow">
+            <div>
+                <p class="text-xs font-medium text-red-400 uppercase tracking-wider">Failed</p>
+                <h3 class="text-2xl font-bold text-red-400 mt-1" id="statFailed">{{ $stats['failed'] }}</h3>
+            </div>
+            <div class="p-3 bg-red-900/40 text-red-400 rounded-xl">
+                <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Schedule Table Card -->
+    <div class="card-dark rounded-2xl overflow-hidden shadow-xl border border-gray-800 space-y-4">
+        <!-- Table Header & Filter Tabs -->
+        <div class="p-6 pb-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                <i class="fa-solid fa-table-list text-indigo-400"></i>
+                <span>Daftar Slot Penjadwalan</span>
+            </h2>
+
+            <!-- Status Filter Tabs -->
+            <div class="flex items-center space-x-1 bg-gray-900 p-1 rounded-xl border border-gray-800 text-xs">
+                <a href="{{ route('schedules.index', ['status' => 'all']) }}" 
+                   class="px-3 py-1.5 rounded-lg font-semibold transition {{ $statusFilter === 'all' ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:text-white' }}">
+                    Semua ({{ $stats['total'] }})
+                </a>
+                <a href="{{ route('schedules.index', ['status' => 'pending']) }}" 
+                   class="px-3 py-1.5 rounded-lg font-semibold transition {{ $statusFilter === 'pending' ? 'bg-amber-600 text-white shadow' : 'text-gray-400 hover:text-white' }}">
+                    Pending ({{ $stats['pending'] }})
+                </a>
+                <a href="{{ route('schedules.index', ['status' => 'completed']) }}" 
+                   class="px-3 py-1.5 rounded-lg font-semibold transition {{ $statusFilter === 'completed' ? 'bg-emerald-600 text-white shadow' : 'text-gray-400 hover:text-white' }}">
+                    Completed ({{ $stats['completed'] }})
+                </a>
+            </div>
+        </div>
+
+        <!-- Table Content -->
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm text-gray-300">
                 <thead class="bg-gray-900/80 text-xs uppercase tracking-wider text-gray-400 border-b border-gray-800">
                     <tr>
                         <th class="px-6 py-4">Item Code / Project</th>
-                        <th class="px-6 py-4">Portofolio Target</th>
-                        <th class="px-6 py-4">Media (Multi-Image)</th>
-                        <th class="px-6 py-4">Tanggal & Jam Tayang</th>
+                        <th class="px-6 py-4">Portfolio Meta</th>
+                        <th class="px-6 py-4">Media Preview</th>
+                        <th class="px-6 py-4">Target Tayang</th>
                         <th class="px-6 py-4">Status</th>
                         <th class="px-6 py-4 text-right">Aksi</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-800">
+                <tbody class="divide-y divide-gray-800" id="scheduleTableBody">
                     @forelse($schedules as $item)
-                        <tr class="hover:bg-gray-800/40 transition">
-                            <!-- Code & Project -->
+                        <tr class="hover:bg-gray-800/40 transition" id="schedule-row-{{ $item->id }}">
+                            <!-- Item Code & Project Name -->
                             <td class="px-6 py-4">
-                                <div class="font-mono font-semibold text-white text-xs">{{ $item->item_code }}</div>
+                                <div class="font-mono text-xs font-semibold text-white">{{ $item->item_code }}</div>
                                 @if($item->project)
-                                    <span class="inline-block mt-1 text-[11px] px-2 py-0.5 bg-indigo-950 text-indigo-300 border border-indigo-800 rounded font-medium">
-                                        <i class="fa-solid fa-folder text-[10px] mr-1"></i>{{ $item->project->name }}
-                                    </span>
+                                    <a href="{{ route('projects.show', $item->project->id) }}" class="text-xs text-indigo-400 hover:underline">
+                                        {{ $item->project->name }}
+                                    </a>
+                                @else
+                                    <span class="text-xs text-gray-500">Standalone Item</span>
                                 @endif
                             </td>
 
@@ -73,15 +123,15 @@
                             <!-- Media Previews -->
                             <td class="px-6 py-4">
                                 @php
-                                    $paths = $item->media_paths ?? [$item->media_path];
+                                    $urls = $item->media_urls;
                                 @endphp
                                 <div class="flex items-center space-x-1">
-                                    @foreach(array_slice($paths, 0, 3) as $p)
-                                        <img src="{{ asset($p) }}" class="w-9 h-9 object-cover rounded-lg border border-gray-700 shadow-sm">
+                                    @foreach(array_slice($urls, 0, 3) as $u)
+                                        <img src="{{ $u }}" class="w-9 h-9 object-cover rounded-lg border border-gray-700 shadow-sm">
                                     @endforeach
-                                    @if(count($paths) > 3)
+                                    @if(count($urls) > 3)
                                         <span class="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center text-xs font-bold text-gray-400">
-                                            +{{ count($paths) - 3 }}
+                                            +{{ count($urls) - 3 }}
                                         </span>
                                     @endif
                                 </div>
@@ -126,7 +176,7 @@
                     @empty
                         <tr>
                             <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                                Belum ada antrean jadwal Story. Buat Project Campaign baru untuk mengisi antrean rolling buffer 30 hari.
+                                Belum ada antrean jadwal Story. Buat Project Campaign baru untuk mengisi antrean rolling buffer.
                             </td>
                         </tr>
                     @endforelse
@@ -149,10 +199,10 @@
     function deleteSchedule(id) {
         Swal.fire({
             title: 'Hapus Item Jadwal?',
-            text: 'Jadwal ini akan dihapus dari antrean local.',
+            text: "Item jadwal ini akan dihapus dari antrean.",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Ya, Hapus',
+            confirmButtonText: 'Ya, Hapus!',
             cancelButtonText: 'Batal',
             customClass: {
                 popup: 'swal2-popup-dark',
@@ -161,22 +211,27 @@
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                showLoading('Menghapus...', 'Menghapus item jadwal dari antrean...');
-
                 fetch(`/schedules/${id}`, {
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
                     }
                 })
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        showAlert('success', 'Berhasil Dihapus', data.message);
-                        setTimeout(() => window.location.reload(), 1000);
+                        document.getElementById(`schedule-row-${id}`)?.remove();
+                        showAlert('success', 'Terhapus!', data.message);
+                        if (data.stats) {
+                            document.getElementById('statTotal').textContent = data.stats.total;
+                            document.getElementById('statPending').textContent = data.stats.pending;
+                            document.getElementById('statCompleted').textContent = data.stats.completed;
+                            document.getElementById('statFailed').textContent = data.stats.failed;
+                        }
                     } else {
-                        showAlert('error', 'Gagal Menghapus', data.message);
+                        showAlert('error', 'Gagal', data.message);
                     }
                 })
                 .catch(err => {
