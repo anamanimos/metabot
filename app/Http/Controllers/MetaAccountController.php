@@ -34,7 +34,6 @@ class MetaAccountController extends Controller
             $accounts = MetaAccount::withCount(['projects', 'portfolios'])->latest()->get();
         }
 
-        // Cek secara cepat ketersediaan cookie sesi state.json untuk setiap akun
         $stateFile = base_path('state.json');
         $hasStateCookie = false;
         if (file_exists($stateFile)) {
@@ -116,7 +115,6 @@ class MetaAccountController extends Controller
         try {
             $account = MetaAccount::findOrFail($id);
 
-            // Simpan / update daftar portofolio terkonfirmasi untuk akun ini
             $confirmedPortfolios = [
                 'Sevencols',
                 'Arema Style',
@@ -168,44 +166,48 @@ class MetaAccountController extends Controller
     }
 
     /**
-     * Memeriksa Status Login Akun Meta
+     * Memeriksa Status Login Akun Meta dengan Tangkapan Layar (Screenshot) Live
      */
     public function checkStatus($id)
     {
-        $account = MetaAccount::findOrFail($id);
-        $stateFile = base_path('state.json');
+        try {
+            $account = MetaAccount::findOrFail($id);
+            $basePath = base_path();
+            $pythonBin = $this->getPythonBinary();
 
-        $isLoggedIn = false;
-        $fbUserId = null;
+            $outputPath = "public/storage/previews/meta_account_{$account->id}.png";
 
-        if (file_exists($stateFile)) {
-            $content = @file_get_contents($stateFile);
-            $json = @json_decode($content, true);
-            if (isset($json['cookies']) && is_array($json['cookies'])) {
-                foreach ($json['cookies'] as $cookie) {
-                    if (isset($cookie['name']) && $cookie['name'] === 'c_user') {
-                        $isLoggedIn = true;
-                        $fbUserId = $cookie['value'] ?? null;
-                        break;
-                    }
-                }
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                $cmd = "{$pythonBin} check_meta_login.py --user_data={$account->session_folder} --output={$outputPath}";
+            } else {
+                $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
+                $cmd = "export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && cd \"{$basePath}\" && xvfb-run -a {$venvPython} check_meta_login.py --user_data={$account->session_folder} --output={$outputPath}";
             }
+
+            $output = shell_exec($cmd);
+            $jsonResult = @json_decode($output, true);
+
+            $isLoggedIn = $jsonResult['logged_in'] ?? false;
+            $screenshotUrl = $jsonResult['screenshot'] ?? null;
+            if ($screenshotUrl) {
+                $screenshotUrl = asset($screenshotUrl);
+            }
+            $msg = $jsonResult['message'] ?? ($isLoggedIn ? "Akun Terhubung!" : "Belum Login");
+
+            $account->status = $isLoggedIn ? 'active' : 'login_required';
+            $account->save();
+
+            return response()->json([
+                'success' => true,
+                'is_logged_in' => $isLoggedIn,
+                'status' => $account->status,
+                'screenshot_url' => $screenshotUrl,
+                'message' => $msg
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Gagal mengecek status: ' . $e->getMessage()], 500);
         }
-
-        $account->status = $isLoggedIn ? 'active' : 'login_required';
-        $account->save();
-
-        $msg = $isLoggedIn 
-            ? "Status Akun '{$account->account_name}' TERHUBUNG! (ID Pengguna Facebook: {$fbUserId})" 
-            : "Status Akun '{$account->account_name}' BELUM LOGIN. Silakan import file state.json atau hubungkan sesi terlebih dahulu.";
-
-        return response()->json([
-            'success' => true,
-            'is_logged_in' => $isLoggedIn,
-            'fb_user_id' => $fbUserId,
-            'status' => $account->status,
-            'message' => $msg
-        ]);
     }
 
     /**

@@ -79,8 +79,8 @@
                     <div class="grid grid-cols-2 gap-2">
                         <button onclick="checkAccountStatus({{ $account->id }})" 
                                 class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold rounded-xl border border-gray-700 transition flex items-center justify-center space-x-1">
-                            <i class="fa-solid fa-rotate text-indigo-400"></i>
-                            <span>Cek Status</span>
+                            <i class="fa-solid fa-eye text-indigo-400"></i>
+                            <span>Cek Status Live</span>
                         </button>
 
                         <button onclick="openImportStateModal({{ $account->id }}, '{{ $account->account_name }}')" 
@@ -237,9 +237,9 @@
         });
     }
 
-    // Cek Status Login Akun Live
+    // Cek Status Login Akun Live dengan Tangkapan Layar (Screenshot) Meta Dashboard
     function checkAccountStatus(id) {
-        showLoading('Memeriksa Status Login...', 'Memeriksa validitas cookie sesi Facebook/Meta...');
+        showLoading('Memeriksa Status Login Meta...', 'Membuka Chromium browser untuk mengambil tangkapan layar Meta Business Suite real-time...');
 
         fetch(`/meta-accounts/${id}/check-status`, {
             headers: {
@@ -248,12 +248,32 @@
         })
         .then(res => res.json())
         .then(data => {
-            if (data.is_logged_in) {
-                showAlert('success', 'Akun Terhubung!', data.message);
+            if (data.screenshot_url) {
+                Swal.fire({
+                    icon: data.is_logged_in ? 'success' : 'warning',
+                    title: data.is_logged_in ? 'Akun Meta Terhubung & Aktif!' : 'Sesi Belum Login',
+                    html: `
+                        <div class="space-y-3">
+                            <p class="text-xs text-indigo-300 font-semibold">${data.message}</p>
+                            <div class="border border-gray-700 rounded-xl overflow-hidden shadow-2xl bg-gray-950">
+                                <img src="${data.screenshot_url}?t=${new Date().getTime()}" class="w-full h-auto object-cover max-h-80">
+                            </div>
+                            <p class="text-[11px] text-gray-400 italic">Tangkapan layar di atas diambil secara real-time dari Meta Business Suite server Anda.</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Tutup & Perbarui Status',
+                    customClass: {
+                        popup: 'swal2-popup-dark max-w-2xl',
+                        title: 'swal2-title-dark',
+                        htmlContainer: 'swal2-html-dark'
+                    }
+                }).then(() => {
+                    window.location.reload();
+                });
             } else {
-                showAlert('warning', 'Belum Login', data.message);
+                showAlert(data.is_logged_in ? 'success' : 'warning', data.is_logged_in ? 'Akun Terhubung!' : 'Belum Login', data.message);
+                setTimeout(() => window.location.reload(), 1500);
             }
-            setTimeout(() => window.location.reload(), 1500);
         })
         .catch(err => {
             showAlert('error', 'Kesalahan Sistem', err.message);
