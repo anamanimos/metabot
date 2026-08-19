@@ -215,83 +215,108 @@ def download_media_if_url(media_path, custom_filename=None, temp_dir="./temp_med
         return str(local_path)
 
 # ============================================================================
-# NEW ROBUST PORTFOLIO SEARCH, VERIFICATION & COMPOSER FUNCTIONS
+# 2-STAGE PORTFOLIO & ASSET SELECTION FUNCTIONS
 # ============================================================================
 
-def select_portfolio_via_search(page, portfolio_name, timeout_ms=15000):
-    log(f"Membuka dropdown portofolio untuk mencari: '{portfolio_name}'...", "INFO")
+def parse_portfolio_target(combined_string):
+    """Parse format '[nama portofolio] - [nama aset]' menjadi tuple (portfolio_name, asset_name).
+    Jika tidak ada ' - ', anggap seluruh string sebagai portfolio_name DAN asset_name."""
+    if not combined_string:
+        return "", ""
+    if " - " in combined_string:
+        parts = combined_string.split(" - ", 1)
+        return parts[0].strip(), parts[1].strip()
+    else:
+        return combined_string.strip(), combined_string.strip()
+
+def select_portfolio_group(page, portfolio_name, timeout_ms=10000):
+    """Klik grup portofolio di sidebar kiri dropdown berdasarkan nama PERSIS (exact match, case-insensitive)."""
+    log(f"Tahap 1: Mencari grup portofolio '{portfolio_name}' di sidebar kiri...", "INFO")
     
-    portfolio_dropdown_btn = page.locator("div[aria-haspopup='listbox'], button[aria-haspopup='listbox']").first
-    portfolio_dropdown_btn.click(timeout=5000)
+    try:
+        portfolio_dropdown_btn = page.locator("div[aria-haspopup='listbox'], button[aria-haspopup='listbox']").first
+        portfolio_dropdown_btn.click(timeout=5000)
+    except Exception:
+        page.locator("header div[role='button']").first.click(timeout=5000)
+
     page.wait_for_timeout(1500)
     
-    search_box = page.get_by_placeholder("Cari aset bisnis").first
-    search_box.wait_for(state="visible", timeout=5000)
-    search_box.click()
-    search_box.fill(portfolio_name)
-    page.wait_for_timeout(1500)
+    all_group_candidates = page.get_by_text(portfolio_name, exact=False).all()
+    log(f"Ditemukan {len(all_group_candidates)} kandidat grup mengandung '{portfolio_name}'.", "INFO")
     
-    log(f"Menganalisis semua kandidat hasil pencarian untuk '{portfolio_name}'...", "INFO")
-    
-    # Ambil semua elemen radio/list item yang mengandung teks portfolio_name
-    all_candidates = page.get_by_text(portfolio_name, exact=False).all()
-    
-    log(f"Ditemukan {len(all_candidates)} kandidat mentah.", "INFO")
-    
-    best_match = None
-    for i, cand in enumerate(all_candidates):
+    best_group = None
+    for i, cand in enumerate(all_group_candidates):
         try:
             full_text = cand.inner_text().strip()
-            log(f"  Kandidat #{i}: '{full_text}'", "INFO")
+            log(f"  Kandidat grup #{i}: '{full_text}'", "INFO")
             
-            # Split berdasarkan koma, ambil segmen pertama, trim, bandingkan PERSIS (case-insensitive) dengan portfolio_name
-            first_segment = full_text.split(",")[0].strip()
-            
-            if first_segment.lower() == portfolio_name.strip().lower():
-                log(f"  -> COCOK PERSIS (segmen pertama = '{first_segment}')", "SUCCESS")
-                
-                # Verifikasi tambahan: pastikan konteksnya "Halaman Facebook" (bukan hanya "Profil Instagram" berdiri sendiri)
-                try:
-                    parent = cand.locator("xpath=ancestor::div[position()<=4][1]")
-                    parent_text = parent.inner_text().strip().lower()
-                    if "halaman facebook" in parent_text or "facebook page" in parent_text:
-                        log(f"  -> Konteks 'Halaman Facebook' terkonfirmasi. Ini kandidat terbaik.", "SUCCESS")
-                        best_match = cand
-                        break
-                    else:
-                        log(f"  -> Konteks bukan 'Halaman Facebook' ('{parent_text[:60]}...'), skip.", "WARN")
-                except Exception:
-                    # Kalau gagal cek parent, tetap terima karena segmen pertama sudah cocok persis
-                    best_match = cand
-                    break
-            else:
-                log(f"  -> Tidak cocok (segmen pertama = '{first_segment}' != '{portfolio_name}')", "INFO")
-        except Exception as e:
-            log(f"  Kandidat #{i}: gagal dibaca ({e})", "WARN")
+            if full_text.strip().lower() == portfolio_name.strip().lower():
+                log(f"  -> COCOK PERSIS. Ini grup target.", "SUCCESS")
+                best_group = cand
+                break
+        except Exception:
             continue
     
-    if best_match is None:
-        log(f"TIDAK ADA kandidat yang cocok persis dengan '{portfolio_name}'.", "ERROR")
+    if best_group is None:
+        log(f"Grup portofolio '{portfolio_name}' TIDAK ditemukan (exact match).", "ERROR")
         try:
-            page.screenshot(path="./debug_portfolio_search_no_match.png", full_page=True)
+            page.screenshot(path="./debug_portfolio_group_not_found.png", full_page=True)
         except Exception:
             pass
         return False
     
-    log(f"Mengklik kandidat terpilih untuk '{portfolio_name}'...", "INFO")
-    best_match.click(timeout=5000)
+    best_group.click(timeout=5000)
+    page.wait_for_timeout(1500)
+    log(f"Grup portofolio '{portfolio_name}' berhasil diklik.", "SUCCESS")
+    return True
+
+def select_asset_within_portfolio(page, asset_name, timeout_ms=10000):
+    """Setelah grup portofolio diklik (panel kanan menampilkan daftar aset), pilih aset yang namanya PERSIS cocok dengan asset_name."""
+    log(f"Tahap 2: Mencari aset '{asset_name}' di dalam portofolio...", "INFO")
+    
+    page.wait_for_timeout(1000)
+    search_keyword = asset_name.split(",")[0].strip()
+    all_asset_candidates = page.get_by_text(search_keyword, exact=False).all()
+    log(f"Ditemukan {len(all_asset_candidates)} kandidat aset.", "INFO")
+    
+    best_asset = None
+    for i, cand in enumerate(all_asset_candidates):
+        try:
+            full_text = cand.inner_text().strip()
+            log(f"  Kandidat aset #{i}: '{full_text}'", "INFO")
+            
+            if full_text.strip().lower() == asset_name.strip().lower():
+                log(f"  -> COCOK PERSIS teks lengkap.", "SUCCESS")
+                best_asset = cand
+                break
+            
+            first_segment = full_text.split(",")[0].strip()
+            target_first_segment = asset_name.split(",")[0].strip()
+            if first_segment.lower() == target_first_segment.lower():
+                try:
+                    parent = cand.locator("xpath=ancestor::div[position()<=4][1]")
+                    parent_text = parent.inner_text().strip().lower()
+                    if "halaman facebook" in parent_text or "facebook page" in parent_text:
+                        log(f"  -> Cocok segmen pertama + konteks 'Halaman Facebook'.", "SUCCESS")
+                        best_asset = cand
+                        break
+                except Exception:
+                    best_asset = cand
+                    break
+        except Exception:
+            continue
+    
+    if best_asset is None:
+        log(f"Aset '{asset_name}' TIDAK ditemukan di dalam portofolio.", "ERROR")
+        try:
+            page.screenshot(path="./debug_asset_not_found.png", full_page=True)
+        except Exception:
+            pass
+        return False
+    
+    best_asset.click(timeout=5000)
     page.wait_for_timeout(2000)
-    
-    # Cek apakah ada tombol konfirmasi tambahan (opsional)
-    try:
-        confirm_btn = page.get_by_text("Terapkan", exact=False).first
-        if confirm_btn.is_visible(timeout=2000):
-            confirm_btn.click(timeout=3000)
-            log("Tombol konfirmasi 'Terapkan' diklik.", "INFO")
-            page.wait_for_timeout(1500)
-    except Exception:
-        pass
-    
+    log(f"Aset '{asset_name}' berhasil dipilih.", "SUCCESS")
     return True
 
 def verify_active_portfolio(page, expected_name, timeout_ms=10000):
@@ -350,7 +375,9 @@ def open_story_composer_via_button(page, timeout_ms=10000):
 
 def schedule_story_item(page, item):
     item_id = item.get("id") or item.get("item_code") or "N/A"
-    portfolio_name = item.get("portfolioName") or item.get("portfolio_name")
+    combined_target = item.get("portfolioName") or item.get("portfolio_name") or "Sevencols - Sevencols, sevencols"
+    portfolio_name, asset_name = parse_portfolio_target(combined_target)
+    
     raw_date = item.get("date") or item.get("target_date")
     time_str = item.get("time") or item.get("target_time")
     
@@ -361,7 +388,7 @@ def schedule_story_item(page, item):
         media_paths = [item.get("media_path")]
 
     log(f"=== MEMPROSES SCHEDULE ITEM [{item_id}] ===", "PROCESS")
-    log(f"Target Portofolio: {portfolio_name} | Tanggal: {raw_date} | Jam: {time_str}", "INFO")
+    log(f"Target Portofolio: '{portfolio_name}' | Target Aset: '{asset_name}' | Tanggal: {raw_date} | Jam: {time_str}", "INFO")
 
     if not media_paths:
         raise ValueError(f"Schedule item [{item_id}] tidak memiliki path media!")
@@ -380,16 +407,19 @@ def schedule_story_item(page, item):
         log("⚠️ Sesi browser belum login ke Facebook! Silakan login Meta Business Suite di profil user_data terlebih dahulu.", "ERROR")
         raise RuntimeError("Browser belum ter-login ke Meta Business Suite (Pengalihan ke Halaman Login Terdeteksi). Silakan login terlebih dahulu.")
 
-    # 2. Pilih Portofolio via Search Box & Verifikasi
+    # 2. Navigasi 2-Tahap: Pilih Grup Portofolio (Tahap 1) & Aset Spesifik (Tahap 2)
     if portfolio_name:
-        log(f"Melakukan pemilihan portofolio via pencarian: '{portfolio_name}'...", "PROCESS")
-        portfolio_selected = select_portfolio_via_search(page, portfolio_name)
-        if not portfolio_selected:
-            raise RuntimeError(f"Gagal memilih portofolio '{portfolio_name}' via search box.")
+        step1_ok = select_portfolio_group(page, portfolio_name)
+        if not step1_ok:
+            raise RuntimeError(f"Gagal memilih grup portofolio '{portfolio_name}' (Tahap 1).")
+        
+        step2_ok = select_asset_within_portfolio(page, asset_name)
+        if not step2_ok:
+            raise RuntimeError(f"Gagal memilih aset '{asset_name}' di dalam portofolio (Tahap 2).")
 
         verified = verify_active_portfolio(page, portfolio_name)
         if not verified:
-            raise RuntimeError(f"Portofolio '{portfolio_name}' tidak terverifikasi aktif setelah dipilih. Proses dihentikan (TIDAK mengasumsikan sukses).")
+            raise RuntimeError(f"Portofolio '{portfolio_name}' tidak terverifikasi aktif setelah dipilih.")
 
     # 3. Buka Story Composer via Tombol 'Buat cerita' di Home
     composer_opened = open_story_composer_via_button(page)
