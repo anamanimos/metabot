@@ -43,7 +43,6 @@ def sanitize_cookies_for_playwright(raw_cookies):
             "path": c.get("path", "/")
         }
 
-        # Filter sameSite Playwright
         same_site = str(c.get("sameSite", "")).lower()
         if "lax" in same_site:
             cookie["sameSite"] = "Lax"
@@ -133,7 +132,19 @@ def check_login():
                 relative_screenshot = "/" + relative_screenshot
             result["screenshot"] = relative_screenshot
 
-            if "login" not in current_url.lower() and "business.facebook.com" in current_url:
+            # Deteksi elemen dashboard Meta Business Suite (Beranda / Notifikasi / Pengelola Iklan)
+            has_dashboard = False
+            try:
+                if page.locator("text='Beranda'").count() > 0 or \
+                   page.locator("text='Home'").count() > 0 or \
+                   page.locator("text='Notifikasi'").count() > 0 or \
+                   page.locator("text='Pengelola Iklan'").count() > 0 or \
+                   page.locator("text='Konten'").count() > 0:
+                    has_dashboard = True
+            except Exception:
+                pass
+
+            if (has_dashboard or "business.facebook.com/latest/home" in current_url) and "facebook.com/login" not in current_url:
                 result["logged_in"] = True
                 result["message"] = "Sesi Meta Business Suite Terverifikasi Aktif & Terhubung!"
             else:

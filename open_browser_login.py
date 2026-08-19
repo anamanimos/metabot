@@ -47,7 +47,6 @@ def open_visual_browser():
                 ]
             }
 
-            # Pada Windows, gunakan Google Chrome asli jika terpasang untuk kompatibilitas terbaik
             if sys.platform == 'win32':
                 try:
                     context = p.chromium.launch_persistent_context(channel="chrome", **launch_args)
@@ -56,7 +55,7 @@ def open_visual_browser():
             else:
                 context = p.chromium.launch_persistent_context(**launch_args)
 
-            # Impor cookie dari state.json jika sudah pernah di-export
+            # Impor cookie dari state.json jika ada
             state_file = Path("state.json")
             if state_file.exists():
                 try:
@@ -72,13 +71,26 @@ def open_visual_browser():
 
             print("Menunggu pengguna melakukan login di jendela browser ini...", file=sys.stderr)
 
-            # Tunggu hingga URL mengarah ke business.facebook.com tanpa kata 'login' (maksimal 10 menit / 600 detik)
             is_logged_in = False
             for _ in range(300):
                 try:
                     time.sleep(2)
                     current_url = page.url
-                    if "business.facebook.com" in current_url and "login" not in current_url.lower():
+                    
+                    # Cek elemen dashboard Meta (Beranda / Notifikasi / Pengelola Iklan / Home)
+                    has_dashboard_element = False
+                    try:
+                        if page.locator("text='Beranda'").count() > 0 or \
+                           page.locator("text='Home'").count() > 0 or \
+                           page.locator("text='Notifikasi'").count() > 0 or \
+                           page.locator("text='Pengelola Iklan'").count() > 0 or \
+                           page.locator("text='Konten'").count() > 0:
+                            has_dashboard_element = True
+                    except Exception:
+                        pass
+
+                    # Jika URL mengandung business.facebook.com/latest/home DAN bukan halaman login murni
+                    if (has_dashboard_element or "business.facebook.com/latest/home" in current_url) and "facebook.com/login" not in current_url:
                         is_logged_in = True
                         break
                 except Exception:
@@ -86,12 +98,18 @@ def open_visual_browser():
 
             if is_logged_in:
                 result["success"] = True
-                result["message"] = "Login Meta Berhasil! Sesi otentikasi telah disimpan secara permanen."
+                result["message"] = "Login Meta Berhasil! Sesi otentikasi telah disimpan secara permanen ke state.json."
 
                 # Simpan state.json untuk otentikasi abadi
                 state = context.storage_state()
                 with open(state_file, "w", encoding="utf-8") as sf:
                     json.dump(state, sf, indent=2, ensure_ascii=False)
+
+                try:
+                    page.evaluate("alert('✅ LOGIN META BERHASIL! Sesi otentikasi telah disimpan secara otomatis.')")
+                    time.sleep(2)
+                except Exception:
+                    pass
             else:
                 result["success"] = False
                 result["message"] = "Waktu login habis atau jendela browser ditutup sebelum login selesai."
@@ -100,7 +118,7 @@ def open_visual_browser():
 
     except Exception as e:
         result["success"] = False
-        result["message"] = f"Catatan sesi browser ditutup: {str(e)}"
+        result["message"] = f"Proses login selesai: {str(e)}"
 
     return result
 
