@@ -149,7 +149,7 @@ class ScheduleController extends Controller
                 @touch($logFile);
                 @chmod($logFile, 0777);
 
-                $cmd = "export HOME=/home/nams && export PLAYWRIGHT_BROWSERS_PATH=/home/nams/.cache/ms-playwright && cd \"{$basePath}\" && xvfb-run -a {$venvPython} scheduler.py >> storage/logs/bot_runner.log 2>&1 &";
+                $cmd = "export HOME=/home/nams && cd \"{$basePath}\" && xvfb-run -a {$venvPython} scheduler.py >> storage/logs/bot_runner.log 2>&1 &";
                 exec($cmd, $output, $returnVar);
                 Log::info("Bot exec triggered: {$cmd} | Exit Code: {$returnVar}");
             }

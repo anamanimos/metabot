@@ -10,12 +10,6 @@ import requests
 from datetime import datetime
 from pathlib import Path
 
-# Set default Playwright browser path to /home/nams/.cache/ms-playwright if not set
-if "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
-    nams_cache = Path("/home/nams/.cache/ms-playwright")
-    if nams_cache.exists():
-        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(nams_cache)
-
 # Force UTF-8 output on Windows CMD to prevent UnicodeEncodeError with Emojis
 if sys.platform == 'win32':
     try:
