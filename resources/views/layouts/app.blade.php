@@ -135,7 +135,7 @@
                 <div id="widgetProgressBar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
             </div>
 
-            <!-- Stats Counts Grid -->
+            <!-- Stats Counts Grid (Batch Murni Sesi Ini) -->
             <div class="grid grid-cols-3 gap-2 text-center text-[11px] pt-1">
                 <div class="bg-gray-800/80 p-2 rounded-xl border border-gray-700/60">
                     <span class="text-amber-400 font-bold block text-sm" id="widgetPendingCount">0</span>
@@ -143,11 +143,11 @@
                 </div>
                 <div class="bg-gray-800/80 p-2 rounded-xl border border-gray-700/60">
                     <span class="text-emerald-400 font-bold block text-sm" id="widgetCompletedCount">0</span>
-                    <span class="text-gray-400 text-[10px]">Completed</span>
+                    <span class="text-gray-400 text-[10px]">Selesai (Batch)</span>
                 </div>
                 <div class="bg-gray-800/80 p-2 rounded-xl border border-gray-700/60">
                     <span class="text-red-400 font-bold block text-sm" id="widgetFailedCount">0</span>
-                    <span class="text-gray-400 text-[10px]">Failed</span>
+                    <span class="text-gray-400 text-[10px]">Gagal (Batch)</span>
                 </div>
             </div>
 
@@ -172,6 +172,8 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         let progressInterval = null;
         let batchInitialPending = 0;
+        let initialCompletedOffset = null;
+        let initialFailedOffset = null;
 
         function showProgressWidget() {
             document.getElementById('botProgressWidget').classList.remove('hidden');
@@ -198,10 +200,16 @@
 
         function startProgressPolling(initialCount) {
             batchInitialPending = initialCount || 0;
+            initialCompletedOffset = null;
+            initialFailedOffset = null;
+
             showProgressWidget();
             if (progressInterval) clearInterval(progressInterval);
 
             document.getElementById('widgetProgressBar').style.width = '0%';
+            document.getElementById('widgetPendingCount').textContent = batchInitialPending;
+            document.getElementById('widgetCompletedCount').textContent = 0;
+            document.getElementById('widgetFailedCount').textContent = 0;
             document.getElementById('widgetStatusText').textContent = `🚀 Memproses ${batchInitialPending} item PENDING...`;
             document.getElementById('widgetErrorBox').classList.add('hidden');
             document.getElementById('widgetContainer').className = "bg-gray-900/95 backdrop-blur-xl border border-indigo-500/40 rounded-2xl p-4 shadow-2xl space-y-3 relative overflow-hidden";
@@ -210,23 +218,31 @@
                 fetch("{{ route('schedules.executionProgress') }}")
                 .then(res => res.json())
                 .then(data => {
+                    if (initialCompletedOffset === null) {
+                        initialCompletedOffset = data.completed;
+                        initialFailedOffset = data.failed;
+                    }
+
+                    const batchCompleted = Math.max(0, data.completed - initialCompletedOffset);
+                    const batchFailed = Math.max(0, data.failed - initialFailedOffset);
+
                     document.getElementById('widgetPendingCount').textContent = data.pending;
-                    document.getElementById('widgetCompletedCount').textContent = data.completed;
-                    document.getElementById('widgetFailedCount').textContent = data.failed;
+                    document.getElementById('widgetCompletedCount').textContent = batchCompleted;
+                    document.getElementById('widgetFailedCount').textContent = batchFailed;
 
                     if (data.latest_note) {
                         document.getElementById('widgetLatestNote').textContent = data.latest_note;
                     }
 
-                    // Tampilkan Error Box jika ada item yang FAILED
-                    if (data.failed > 0 && data.failed_note) {
+                    // Tampilkan Error Box jika ada item batch yang FAILED
+                    if (batchFailed > 0 && data.failed_note) {
                         document.getElementById('widgetErrorBox').classList.remove('hidden');
                         document.getElementById('widgetErrorDetail').textContent = `[${data.failed_item}] ${data.failed_note}`;
                         document.getElementById('widgetContainer').className = "bg-gray-900/95 backdrop-blur-xl border border-red-500/80 rounded-2xl p-4 shadow-2xl space-y-3 relative overflow-hidden shadow-red-950/50";
                     }
 
                     if (batchInitialPending > 0) {
-                        const processedInBatch = Math.max(0, batchInitialPending - data.pending);
+                        const processedInBatch = batchCompleted + batchFailed;
                         const pct = Math.min(100, Math.round((processedInBatch / batchInitialPending) * 100));
                         document.getElementById('widgetProgressBar').style.width = `${pct}%`;
                     }
@@ -234,15 +250,15 @@
                     if (data.pending > 0) {
                         document.getElementById('widgetStatusText').textContent = `🚀 Memproses antrean... Tersisa ${data.pending} item PENDING`;
                     } else {
-                        if (data.failed > 0) {
-                            document.getElementById('widgetStatusText').textContent = `⚠️ Selesai dengan ${data.failed} item GAGAL. Cek detail error di atas.`;
+                        if (batchFailed > 0) {
+                            document.getElementById('widgetStatusText').textContent = `⚠️ Selesai dengan ${batchFailed} item GAGAL dalam batch ini.`;
                         } else {
                             document.getElementById('widgetStatusText').textContent = `✅ Seluruh ${batchInitialPending} antrean PENDING selesai diproses!`;
                             document.getElementById('widgetProgressBar').style.width = `100%`;
                             setTimeout(() => {
                                 hideProgressWidget();
                                 window.location.reload();
-                            }, 5000);
+                            }, 4000);
                         }
                     }
                 })
