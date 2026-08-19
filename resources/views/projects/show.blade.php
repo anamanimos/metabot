@@ -154,12 +154,14 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-right">
-                                <button onclick="runSingleSchedule({{ $item->id }}, '{{ $item->item_code }}')" 
-                                        class="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1.5"
-                                        title="Kirim item jadwal ini saja secara satuan">
-                                    <i class="fa-solid fa-paper-plane text-[11px]"></i>
-                                    <span>{{ $item->status === 'failed' ? 'Kirim Ulang' : 'Kirim Satuan' }}</span>
-                                </button>
+                                @if($item->status !== 'completed')
+                                    <button onclick="runSingleSchedule({{ $item->id }}, '{{ $item->item_code }}')" 
+                                            class="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1.5"
+                                            title="Kirim item jadwal ini saja secara satuan">
+                                        <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                                        <span>{{ $item->status === 'failed' ? 'Kirim Ulang' : 'Kirim Satuan' }}</span>
+                                    </button>
+                                @endif
                             </td>
                         </tr>
                     @empty
