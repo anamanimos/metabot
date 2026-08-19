@@ -309,7 +309,6 @@ def schedule_story_item(page, item):
             continue
             
     if not file_input_found:
-        # Pengecekan fallback dengan locator broad di seluruh frame
         try:
             inputs = page.locator("input[type='file']").all()
             if inputs:
@@ -469,18 +468,26 @@ def main():
         is_headless = True
         log("DISPLAY tidak ditemukan. Menggunakan mode Headless=True pada Linux server.", "INFO")
 
+    storage_state_file = Path("state.json")
+    storage_state_path = str(storage_state_file) if storage_state_file.exists() else None
+    if storage_state_path:
+        log(f"Memuat status sesi OS-agnostic dari: {storage_state_path}", "INFO")
+
     with sync_playwright() as p:
-        context = p.chromium.launch_persistent_context(
-            user_data_dir=user_data_dir,
-            headless=is_headless,
-            viewport={"width": 1280, "height": 900},
-            args=[
+        launch_kwargs = {
+            "user_data_dir": user_data_dir,
+            "headless": is_headless,
+            "viewport": {"width": 1280, "height": 900},
+            "args": [
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
                 "--disable-dev-shm-usage"
             ]
-        )
-        
+        }
+        if storage_state_path:
+            launch_kwargs["storage_state"] = storage_state_path
+
+        context = p.chromium.launch_persistent_context(**launch_kwargs)
         page = context.pages[0] if context.pages else context.new_page()
 
         success_count = 0
