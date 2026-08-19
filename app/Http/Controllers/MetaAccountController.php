@@ -291,7 +291,15 @@ class MetaAccountController extends Controller
                 return response()->json(['success' => false, 'message' => 'Format JSON cookie tidak valid! Harus berupa objek JSON state Playwright.'], 400);
             }
 
-            file_put_contents(base_path('state.json'), json_encode($parsed, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $statePath = base_path('state.json');
+            if (file_exists($statePath)) {
+                @chmod($statePath, 0666);
+            }
+
+            @file_put_contents($statePath, json_encode($parsed, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            if (file_exists($statePath)) {
+                @chmod($statePath, 0666);
+            }
 
             $account->status = 'active';
             $account->save();
