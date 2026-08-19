@@ -27,7 +27,6 @@ def check_login():
     parser.add_argument("--output", type=str, default="public/storage/previews/meta_login.png")
     args, _ = parser.parse_known_args()
 
-    user_data_dir = str(Path(args.user_data).resolve())
     output_path = str(Path(args.output).resolve())
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
@@ -47,10 +46,9 @@ def check_login():
 
     try:
         with sync_playwright() as p:
-            context = p.chromium.launch_persistent_context(
-                user_data_dir=user_data_dir,
+            # Gunakan browser.launch biasa (non-persistent) untuk menghindari bentrok SingletonLock profile
+            browser = p.chromium.launch(
                 headless=is_headless,
-                viewport={"width": 1280, "height": 800},
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
@@ -60,7 +58,10 @@ def check_login():
                 ]
             )
 
-            if storage_state_path:
+            context = browser.new_context(viewport={"width": 1280, "height": 800})
+
+            # Impor cookie otentikasi sesi dari state.json jika ada
+            if storage_state_path and Path(storage_state_path).exists():
                 try:
                     with open(storage_state_path, "r", encoding="utf-8") as sf:
                         state_data = json.load(sf)
@@ -69,7 +70,7 @@ def check_login():
                 except Exception:
                     pass
 
-            page = context.pages[0] if context.pages else context.new_page()
+            page = context.new_page()
             page.goto("https://business.facebook.com/latest/home", wait_until="domcontentloaded")
             time.sleep(4)
 
@@ -89,7 +90,7 @@ def check_login():
                 result["logged_in"] = False
                 result["message"] = "Sesi belum ter-login ke Meta Business Suite (Dialihkan ke Halaman Login)."
 
-            context.close()
+            browser.close()
 
     except Exception as e:
         result["logged_in"] = False
