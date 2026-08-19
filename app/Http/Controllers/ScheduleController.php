@@ -142,10 +142,12 @@ class ScheduleController extends Controller
                 $cmd = "start \"Meta Story Auto Scheduler Bot\" cmd /k \"cd /d \"{$basePath}\" && {$pythonBin} scheduler.py\"";
                 pclose(popen($cmd, "r"));
             } else {
-                exec("cd {$basePath} && xvfb-run {$pythonBin} scheduler.py > storage/logs/bot_runner.log 2>&1 &");
+                $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
+                $cmd = "cd \"{$basePath}\" && xvfb-run -a {$venvPython} scheduler.py > storage/logs/bot_runner.log 2>&1 &";
+                exec($cmd);
             }
 
-            $msg = "Berhasil mengekspor " . count($jsonExport) . " item PENDING ke schedule.json dan menjalankan bot Playwright!";
+            $msg = "Berhasil mengekspor " . count($jsonExport) . " item PENDING ke schedule.json dan menjalankan bot Playwright secara instan!";
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
