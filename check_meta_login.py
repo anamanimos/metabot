@@ -6,11 +6,16 @@ import time
 import argparse
 from pathlib import Path
 
-# Force UTF-8 output
+# Force UTF-8 output safely on Windows CMD / PHP CGI without WinError 6
 if sys.platform == 'win32':
     try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+        if hasattr(sys.stdout, 'buffer') and sys.stdout.buffer is not None:
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+    try:
+        if hasattr(sys.stderr, 'buffer') and sys.stderr.buffer is not None:
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
     except Exception:
         pass
 
@@ -89,16 +94,24 @@ def check_login():
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=is_headless,
-                args=[
+            launch_args = {
+                "headless": is_headless,
+                "args": [
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
                     "--disable-dev-shm-usage",
                     "--disable-gpu",
                     "--disable-software-rasterizer"
                 ]
-            )
+            }
+
+            if sys.platform == 'win32':
+                try:
+                    browser = p.chromium.launch(channel="chrome", **launch_args)
+                except Exception:
+                    browser = p.chromium.launch(**launch_args)
+            else:
+                browser = p.chromium.launch(**launch_args)
 
             context = browser.new_context(viewport={"width": 1280, "height": 800})
 
@@ -132,7 +145,7 @@ def check_login():
                 relative_screenshot = "/" + relative_screenshot
             result["screenshot"] = relative_screenshot
 
-            # Deteksi elemen dashboard Meta Business Suite (Beranda / Notifikasi / Pengelola Iklan)
+            # Deteksi elemen dashboard Meta Business Suite (Beranda / Notifikasi / Pengelola Iklan / Home)
             has_dashboard = False
             try:
                 if page.locator("text='Beranda'").count() > 0 or \

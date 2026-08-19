@@ -6,11 +6,16 @@ import time
 import argparse
 from pathlib import Path
 
-# Force UTF-8 output
+# Force UTF-8 output safely on Windows CMD / PHP CGI without WinError 6
 if sys.platform == 'win32':
     try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+        if hasattr(sys.stdout, 'buffer') and sys.stdout.buffer is not None:
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+    try:
+        if hasattr(sys.stderr, 'buffer') and sys.stderr.buffer is not None:
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
     except Exception:
         pass
 
@@ -35,7 +40,10 @@ def open_visual_browser():
 
     try:
         with sync_playwright() as p:
-            print("Membuka jendela browser Chromium visual di layar Windows...", file=sys.stderr)
+            try:
+                print("Membuka jendela browser Chromium visual di layar Windows...", file=sys.stderr)
+            except Exception:
+                pass
             
             launch_args = {
                 "user_data_dir": user_data_dir,
@@ -69,7 +77,10 @@ def open_visual_browser():
             page = context.pages[0] if context.pages else context.new_page()
             page.goto("https://business.facebook.com/latest/home")
 
-            print("Menunggu pengguna melakukan login di jendela browser ini...", file=sys.stderr)
+            try:
+                print("Menunggu pengguna melakukan login di jendela browser ini...", file=sys.stderr)
+            except Exception:
+                pass
 
             is_logged_in = False
             for _ in range(300):
@@ -77,7 +88,6 @@ def open_visual_browser():
                     time.sleep(2)
                     current_url = page.url
                     
-                    # Cek elemen dashboard Meta (Beranda / Notifikasi / Pengelola Iklan / Home)
                     has_dashboard_element = False
                     try:
                         if page.locator("text='Beranda'").count() > 0 or \
@@ -89,7 +99,6 @@ def open_visual_browser():
                     except Exception:
                         pass
 
-                    # Jika URL mengandung business.facebook.com/latest/home DAN bukan halaman login murni
                     if (has_dashboard_element or "business.facebook.com/latest/home" in current_url) and "facebook.com/login" not in current_url:
                         is_logged_in = True
                         break
@@ -100,7 +109,6 @@ def open_visual_browser():
                 result["success"] = True
                 result["message"] = "Login Meta Berhasil! Sesi otentikasi telah disimpan secara permanen ke state.json."
 
-                # Simpan state.json untuk otentikasi abadi
                 state = context.storage_state()
                 with open(state_file, "w", encoding="utf-8") as sf:
                     json.dump(state, sf, indent=2, ensure_ascii=False)
