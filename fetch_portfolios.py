@@ -38,7 +38,12 @@ def fetch_portfolios_from_meta():
     else:
         user_data_dir = str(Path(config.get("user_data_dir", "./user_data")).resolve())
 
-    headless = config.get("headless", False)
+    is_headless = False
+    if sys.platform != 'win32' and not os.environ.get("DISPLAY"):
+        is_headless = True
+        log("DISPLAY tidak ditemukan. Menggunakan mode Headless=True pada Linux server.", "INFO")
+    else:
+        log("🖥️ Menggunakan mode Visual (Headless=False) pada layar Windows pengguna.", "INFO")
 
     log("==========================================================", "INFO")
     log("MEMULAI BOT MEMINDAI ASET BISNIS (PROFIL/HALAMAN) META", "INFO")
@@ -49,18 +54,38 @@ def fetch_portfolios_from_meta():
     seen_names = set()
 
     with sync_playwright() as p:
-        log("Membuka Chromium browser persistent context...", "INFO")
-        context = p.chromium.launch_persistent_context(
-            user_data_dir,
-            headless=headless,
-            viewport=config.get("viewport", {"width": 1280, "height": 800}),
-            args=[
+        log("Membuka Chromium browser persistent context secara visual...", "INFO")
+        
+        launch_kwargs = {
+            "user_data_dir": user_data_dir,
+            "headless": is_headless,
+            "viewport": None if not is_headless else {"width": 1280, "height": 800},
+            "args": [
                 "--start-maximized",
                 "--disable-blink-features=AutomationControlled",
                 "--disable-infobars",
                 "--disable-session-crashed-bubble"
             ]
-        )
+        }
+
+        if sys.platform == 'win32':
+            try:
+                context = p.chromium.launch_persistent_context(channel="chrome", **launch_kwargs)
+            except Exception:
+                context = p.chromium.launch_persistent_context(**launch_kwargs)
+        else:
+            context = p.chromium.launch_persistent_context(**launch_kwargs)
+
+        # Impor cookie dari state.json jika ada
+        state_file = Path("state.json")
+        if state_file.exists():
+            try:
+                with open(state_file, "r", encoding="utf-8") as sf:
+                    st = json.load(sf)
+                    if isinstance(st, dict) and "cookies" in st:
+                        context.add_cookies(st["cookies"])
+            except Exception:
+                pass
 
         page = context.pages[0] if context.pages else context.new_page()
 
@@ -101,7 +126,6 @@ def fetch_portfolios_from_meta():
 
             log("Membaca daftar Aset Bisnis (Halaman Facebook & Profil Instagram)...", "INFO")
 
-            # 1. Pindai kartu Aset Bisnis yang membungkus teks 'Halaman Facebook' atau 'profil Instagram'
             cards = page.locator("div").filter(has_text="Halaman Facebook").all()
             if not cards:
                 cards = page.locator("div").filter(has_text="profil Instagram").all()
@@ -120,7 +144,6 @@ def fetch_portfolios_from_meta():
                 except Exception:
                     pass
 
-            # 2. Jika belum ditemukan, pindai elemen dengan role='heading' di panel modal
             if not assets:
                 headings = page.locator("div[role='heading'], span[role='heading']").all()
                 for h in headings:

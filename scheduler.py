@@ -120,7 +120,6 @@ def update_db_schedule_status(item_code, status, notes=None):
     db_cfg = get_db_config()
     db_updated = False
 
-    # 1. Coba MySQL dengan user dari .env
     try:
         import pymysql
         conn = pymysql.connect(
@@ -144,7 +143,6 @@ def update_db_schedule_status(item_code, status, notes=None):
     except Exception as e:
         log(f"Percobaan MySQL 1 ({db_cfg['user']}) gagal: {e}", "WARN")
 
-    # 2. Coba MySQL fallback user root jika percobaan 1 gagal
     if not db_updated and db_cfg['user'] != 'root':
         try:
             import pymysql
@@ -169,7 +167,6 @@ def update_db_schedule_status(item_code, status, notes=None):
         except Exception as e:
             log(f"Percobaan MySQL Fallback root gagal: {e}", "WARN")
 
-    # 3. Fallback ke SQLite jika ada
     if not db_updated:
         try:
             db_path = Path("database/database.sqlite")
@@ -297,11 +294,10 @@ def schedule_story_item(page, item):
         prepared_media_files.append(local_file)
 
     composer_url = "https://business.facebook.com/latest/composer?asset_id=&context_ref=REDESIGN_HOME_PAGE_SCHEDULE_POST_BUTTON&is_story=true&nav_ref=bm_home_schedule_post_button"
-    log(f"Membuka Meta Story Composer: {composer_url}", "INFO")
+    log(f"Membuka Meta Story Composer di browser visual: {composer_url}", "INFO")
     page.goto(composer_url, wait_until="networkidle")
     time.sleep(4)
 
-    # Deteksi Halaman Login (Jika Belum Sesi Ter-login)
     if "login" in page.url.lower() or "facebook.com/login" in page.url.lower():
         log("⚠️ Sesi browser belum login ke Facebook! Silakan login Meta Business Suite di profil user_data terlebih dahulu.", "ERROR")
         raise RuntimeError("Browser belum ter-login ke Meta Business Suite (Pengalihan ke Halaman Login Terdeteksi). Silakan login terlebih dahulu.")
@@ -511,23 +507,32 @@ def main():
     if sys.platform != 'win32' and not os.environ.get("DISPLAY"):
         is_headless = True
         log("DISPLAY tidak ditemukan. Menggunakan mode Headless=True pada Linux server.", "INFO")
+    else:
+        log("🖥️ Menggunakan mode Visual (Headless=False) pada layar Windows pengguna.", "INFO")
 
     storage_state_file = Path("state.json")
     storage_state_path = str(storage_state_file) if storage_state_file.exists() else None
 
     with sync_playwright() as p:
-        context = p.chromium.launch_persistent_context(
-            user_data_dir=user_data_dir,
-            headless=is_headless,
-            viewport={"width": 1280, "height": 900},
-            args=[
+        launch_kwargs = {
+            "user_data_dir": user_data_dir,
+            "headless": is_headless,
+            "viewport": None if not is_headless else {"width": 1280, "height": 900},
+            "args": [
+                "--start-maximized",
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--disable-software-rasterizer"
+                "--disable-dev-shm-usage"
             ]
-        )
+        }
+
+        if sys.platform == 'win32':
+            try:
+                context = p.chromium.launch_persistent_context(channel="chrome", **launch_kwargs)
+            except Exception:
+                context = p.chromium.launch_persistent_context(**launch_kwargs)
+        else:
+            context = p.chromium.launch_persistent_context(**launch_kwargs)
 
         if storage_state_path:
             try:
