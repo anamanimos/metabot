@@ -40,7 +40,7 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between">
+<body class="min-h-screen flex flex-col justify-between relative">
 
     <!-- Header Navigation -->
     <nav class="bg-gray-900/90 backdrop-blur-md border-b border-gray-800 sticky top-0 z-40">
@@ -108,9 +108,111 @@
         <p>&copy; {{ date('Y') }} Meta Story Auto Scheduler — Multi-Account & Rolling 29-Day Campaign Manager</p>
     </footer>
 
+    <!-- Floating Live Progress Widget Kanan Bawah -->
+    <div id="botProgressWidget" class="fixed bottom-6 right-6 z-50 hidden max-w-sm w-full transition-all duration-300">
+        <div class="bg-gray-900/95 backdrop-blur-xl border border-indigo-500/40 rounded-2xl p-4 shadow-2xl space-y-3 relative overflow-hidden">
+            <!-- Top Header Widget -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <div class="relative flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </div>
+                    <span class="text-xs font-bold text-white tracking-wide uppercase">Eksekusi Bot Playwright</span>
+                </div>
+                <button onclick="hideProgressWidget()" class="text-gray-400 hover:text-white transition text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Main Status Message -->
+            <p class="text-xs text-indigo-300 font-medium" id="widgetStatusText">
+                Memicu bot Playwright...
+            </p>
+
+            <!-- Dynamic Progress Bar -->
+            <div class="w-full bg-gray-800 rounded-full h-2 overflow-hidden border border-gray-700">
+                <div id="widgetProgressBar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+
+            <!-- Stats Counts Grid -->
+            <div class="grid grid-cols-3 gap-2 text-center text-[11px] pt-1">
+                <div class="bg-gray-800/80 p-2 rounded-xl border border-gray-700/60">
+                    <span class="text-amber-400 font-bold block text-sm" id="widgetPendingCount">0</span>
+                    <span class="text-gray-400 text-[10px]">Pending</span>
+                </div>
+                <div class="bg-gray-800/80 p-2 rounded-xl border border-gray-700/60">
+                    <span class="text-emerald-400 font-bold block text-sm" id="widgetCompletedCount">0</span>
+                    <span class="text-gray-400 text-[10px]">Completed</span>
+                </div>
+                <div class="bg-gray-800/80 p-2 rounded-xl border border-gray-700/60">
+                    <span class="text-red-400 font-bold block text-sm" id="widgetFailedCount">0</span>
+                    <span class="text-gray-400 text-[10px]">Failed</span>
+                </div>
+            </div>
+
+            <!-- Latest Activity Log -->
+            <div class="text-[10px] text-gray-400 bg-gray-950/60 p-2 rounded-lg border border-gray-800 font-mono truncate" id="widgetLatestNote">
+                Menunggu respon bot...
+            </div>
+        </div>
+    </div>
+
     <!-- Global SweetAlert & AJAX Scripts -->
     <script>
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        let progressInterval = null;
+        let initialPendingTotal = 0;
+
+        function showProgressWidget() {
+            document.getElementById('botProgressWidget').classList.remove('hidden');
+        }
+
+        function hideProgressWidget() {
+            document.getElementById('botProgressWidget').classList.add('hidden');
+            if (progressInterval) clearInterval(progressInterval);
+        }
+
+        function startProgressPolling() {
+            showProgressWidget();
+            if (progressInterval) clearInterval(progressInterval);
+
+            progressInterval = setInterval(() => {
+                fetch("{{ route('schedules.executionProgress') }}")
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('widgetPendingCount').textContent = data.pending;
+                    document.getElementById('widgetCompletedCount').textContent = data.completed;
+                    document.getElementById('widgetFailedCount').textContent = data.failed;
+
+                    if (data.latest_note) {
+                        document.getElementById('widgetLatestNote').textContent = data.latest_note;
+                    }
+
+                    // Hitung persentase progress
+                    const total = data.completed + data.pending + data.failed;
+                    if (total > 0) {
+                        const done = data.completed + data.failed;
+                        const pct = Math.round((done / total) * 100);
+                        document.getElementById('widgetProgressBar').style.width = `${pct}%`;
+                    }
+
+                    if (data.pending > 0) {
+                        document.getElementById('widgetStatusText').textContent = `🚀 Memproses antrean... Tersisa ${data.pending} item PENDING`;
+                    } else {
+                        document.getElementById('widgetStatusText').textContent = `✅ Seluruh antrean PENDING selesai diproses!`;
+                        document.getElementById('widgetProgressBar').style.width = `100%`;
+                        setTimeout(() => {
+                            hideProgressWidget();
+                            window.location.reload();
+                        }, 4000);
+                    }
+                })
+                .catch(err => {
+                    console.log('Progress check error:', err);
+                });
+            }, 3000);
+        }
 
         // Global Alert Helper
         function showAlert(icon, title, text) {
@@ -126,26 +228,15 @@
             });
         }
 
-        // Global Loading Alert Helper
-        function showLoading(title, htmlText) {
-            Swal.fire({
-                title: title,
-                html: htmlText,
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                },
-                customClass: {
-                    popup: 'swal2-popup-dark',
-                    title: 'swal2-title-dark',
-                    htmlContainer: 'swal2-html-dark'
-                }
-            });
-        }
-
         // Action: Ambil Portofolio Meta
         document.getElementById('btnFetchPortfolios')?.addEventListener('click', function() {
-            showLoading('Memindai Aset Meta...', 'Membuka bot Chromium untuk mengambil Aset Bisnis Meta...');
+            Swal.fire({
+                title: 'Memindai Aset Meta...',
+                text: 'Membuka bot Chromium untuk mengambil Aset Bisnis Meta...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+                customClass: { popup: 'swal2-popup-dark', title: 'swal2-title-dark', htmlContainer: 'swal2-html-dark' }
+            });
 
             fetch("{{ route('portfolios.fetch') }}", {
                 method: 'POST',
@@ -171,8 +262,6 @@
 
         // Action: Sync & Jalankan Bot
         document.getElementById('btnSyncRunBot')?.addEventListener('click', function() {
-            showLoading('Mengekspor & Membuka Bot...', 'Menyiapkan schedule.json dan memicu eksekusi bot Playwright...');
-
             fetch("{{ route('schedules.syncRun') }}", {
                 method: 'POST',
                 headers: {
@@ -184,8 +273,8 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    showAlert('success', 'Bot Eksekusi Berjalan!', data.message);
-                    setTimeout(() => window.location.reload(), 2000);
+                    showAlert('success', 'Bot Berhasil Dicu!', data.message);
+                    startProgressPolling();
                 } else {
                     showAlert('info', 'Status Antrean Schedule', data.message);
                 }

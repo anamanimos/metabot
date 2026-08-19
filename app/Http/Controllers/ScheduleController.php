@@ -147,7 +147,7 @@ class ScheduleController extends Controller
                 exec($cmd);
             }
 
-            $msg = "Berhasil mengekspor " . count($jsonExport) . " item PENDING ke schedule.json dan menjalankan bot Playwright secara instan!";
+            $msg = "Berhasil memicu eksekusi " . count($jsonExport) . " item PENDING! Bot Playwright sedang memproses di latar belakang.";
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -168,5 +168,25 @@ class ScheduleController extends Controller
             }
             return redirect()->back()->with('error', 'Gagal menjalankan bot: ' . $e->getMessage());
         }
+    }
+
+    public function executionProgress()
+    {
+        $pendingCount = Schedule::where('status', 'pending')->count();
+        $completedCount = Schedule::where('status', 'completed')->count();
+        $failedCount = Schedule::where('status', 'failed')->count();
+        $totalCount = Schedule::count();
+
+        $latestUpdated = Schedule::orderBy('updated_at', 'desc')->first();
+
+        return response()->json([
+            'pending' => $pendingCount,
+            'completed' => $completedCount,
+            'failed' => $failedCount,
+            'total' => $totalCount,
+            'latest_item' => $latestUpdated ? $latestUpdated->item_code : null,
+            'latest_note' => $latestUpdated ? $latestUpdated->notes : null,
+            'updated_at' => $latestUpdated ? $latestUpdated->updated_at->diffForHumans() : null,
+        ]);
     }
 }
