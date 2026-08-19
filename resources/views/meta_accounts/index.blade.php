@@ -13,7 +13,7 @@
                 <span>Akun Meta (Facebook / Instagram)</span>
             </h1>
             <p class="text-sm text-gray-400 mt-1">
-                Kelola status sesi akun Meta, pindaian portofolio per akun, & impor sesi otentikasi.
+                Kelola status sesi akun Meta, pindaian portofolio per akun, & Login Browser Visual Passkey.
             </p>
         </div>
 
@@ -74,6 +74,13 @@
                             class="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center justify-center space-x-2">
                         <i class="fa-solid fa-arrows-rotate"></i>
                         <span>Ambil Portofolio Akun Ini</span>
+                    </button>
+
+                    <!-- Tombol Buka Browser Visual Passkey -->
+                    <button onclick="openVisualBrowserLogin({{ $account->id }}, '{{ $account->account_name }}')" 
+                            class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-window-restore"></i>
+                        <span>🖥️ Buka Browser Visual (Passkey Login)</span>
                     </button>
 
                     <div class="grid grid-cols-2 gap-2">
@@ -157,13 +164,13 @@
 
         <!-- Navigation Sub-Tabs -->
         <div class="flex border-b border-gray-800 text-xs font-semibold">
-            <button type="button" onclick="switchLoginTab('extension')" id="tabBtnExtension" class="py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2">
-                <i class="fa-solid fa-puzzle-piece"></i>
-                <span>Metode 1: Cookie-Editor (1-Klik)</span>
+            <button type="button" onclick="switchLoginTab('visual')" id="tabBtnVisual" class="py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2">
+                <i class="fa-solid fa-window-restore"></i>
+                <span>Metode 1: Buka Browser Visual (Passkey)</span>
             </button>
-            <button type="button" onclick="switchLoginTab('direct')" id="tabBtnDirect" class="py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2">
-                <i class="fa-solid fa-right-to-bracket"></i>
-                <span>Metode 2: Form Login Web</span>
+            <button type="button" onclick="switchLoginTab('extension')" id="tabBtnExtension" class="py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2">
+                <i class="fa-solid fa-puzzle-piece"></i>
+                <span>Metode 2: Cookie-Editor</span>
             </button>
             <button type="button" onclick="switchLoginTab('file')" id="tabBtnFile" class="py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2">
                 <i class="fa-solid fa-file-import"></i>
@@ -171,77 +178,40 @@
             </button>
         </div>
 
-        <!-- TAB 1: COOKIE EDITOR EXTENSION (EXPORT HTTPONLY COOKIES 1-KLIK) -->
-        <div id="tabExtension" class="space-y-4">
+        <!-- TAB 1: BUKA BROWSER VISUAL DENGAN DUKUNGAN PASSKEY & SIDIK JARI -->
+        <div id="tabVisual" class="space-y-4">
             <div class="bg-indigo-950/60 border border-indigo-800 p-4 rounded-xl text-xs text-indigo-200 space-y-3">
                 <p class="font-bold flex items-center space-x-2 text-indigo-300 text-sm">
-                    <i class="fa-solid fa-shield-halved text-amber-400"></i>
-                    <span>Solusi Tercepat & 100% Aman (Membaca Cookie HttpOnly):</span>
+                    <i class="fa-solid fa-fingerprint text-emerald-400"></i>
+                    <span>Solusi Terbaik: Login Browser Visual Windows Native:</span>
                 </p>
-                <ol class="list-decimal list-inside space-y-2 text-[11px] text-indigo-200 leading-relaxed">
-                    <li>Buka Facebook di browser Anda dan pastikan sudah login.</li>
-                    <li>Gunakan Extension Browser <b>Cookie-Editor</b> untuk mengekspor cookie otentikasi lengkap (termasuk <code>c_user</code> & <code>xs</code>).</li>
-                    <li>Klik ikon <b>Cookie-Editor</b> pada browser -> klik <b>Export (JSON)</b> -> tempelkan di Metode 3 atau form di bawah!</li>
-                </ol>
+                <p class="text-[11px] text-indigo-200 leading-relaxed">
+                    Klik tombol hijau di bawah ini untuk membuka jendela browser Chrome langsung di layar Windows Anda. Anda dapat mengetik password, menyelesaikan <b>Passkey / Sidik Jari (Windows Hello)</b>, atau verifikasi HP secara mudah!
+                </p>
             </div>
 
             <div class="space-y-2 pt-1">
-                <a href="https://chrome.google.com/webstore/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm" target="_blank" 
-                   class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center justify-center space-x-2">
-                    <i class="fa-brands fa-chrome"></i>
-                    <span>1. Install Extension Cookie-Editor (Chrome Web Store)</span>
-                </a>
-
-                <button onclick="switchLoginTab('file')" 
-                        class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow transition flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-paste"></i>
-                    <span>2. Tempel Teks Cookie JSON di Sini</span>
+                <button onclick="openVisualBrowserFromModal()" 
+                        class="w-full py-3 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-window-restore text-sm"></i>
+                    <span>🖥️ Buka Jendela Browser Visual Sekarang</span>
                 </button>
             </div>
         </div>
 
-        <!-- TAB 2: FORM LOGIN LANGSUNG VIA WEB UI -->
-        <form id="formDirectLogin" class="space-y-4 hidden">
-            <input type="hidden" id="directLoginAccountId" name="account_id">
-            
-            <div class="bg-indigo-950/50 border border-indigo-800 p-3 rounded-xl text-xs text-indigo-200 space-y-1">
-                <p class="font-bold flex items-center space-x-1.5 text-indigo-300">
-                    <i class="fa-solid fa-bolt text-amber-400"></i>
-                    <span>Login Otomatis via Web UI:</span>
+        <!-- TAB 2: COOKIE EDITOR EXTENSION -->
+        <div id="tabExtension" class="space-y-4 hidden">
+            <div class="bg-indigo-950/60 border border-indigo-800 p-4 rounded-xl text-xs text-indigo-200 space-y-3">
+                <p class="font-bold flex items-center space-x-2 text-indigo-300 text-sm">
+                    <i class="fa-solid fa-shield-halved text-amber-400"></i>
+                    <span>Ekspor Cookie via Extension:</span>
                 </p>
-                <p class="text-[11px] text-indigo-300/90 leading-relaxed">
-                    Masukkan Email & Kata Sandi Facebook Anda. Bot Playwright akan melakukan login otomatis di server dan menyimpan sesi secara langsung!
-                </p>
+                <ol class="list-decimal list-inside space-y-2 text-[11px] text-indigo-200 leading-relaxed">
+                    <li>Buka Facebook di browser Anda dan pastikan sudah login.</li>
+                    <li>Gunakan Extension <b>Cookie-Editor</b> -> Export JSON -> tempel di Metode 3.</li>
+                </ol>
             </div>
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Email / No. HP Facebook</label>
-                <input type="text" name="email" required placeholder="contoh: email@domain.com atau 081234..." 
-                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Kata Sandi (Password) Facebook</label>
-                <input type="password" name="password" required placeholder="Masukkan kata sandi Facebook Anda" 
-                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Kode 2FA / Authenticator (Opsional)</label>
-                <input type="text" name="two_factor" placeholder="Masukkan 6-digit kode OTP/2FA jika akun aktifkan 2FA" 
-                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono tracking-widest">
-            </div>
-
-            <div class="pt-3 border-t border-gray-800 flex justify-end space-x-3">
-                <button type="button" onclick="closeImportStateModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl text-xs transition">
-                    Batal
-                </button>
-                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
-                    <i class="fa-solid fa-paper-plane"></i>
-                    <span>Proses Login Langsung</span>
-                </button>
-            </div>
-        </form>
+        </div>
 
         <!-- TAB 3: UNGGAH FILE STATE.JSON / TEMPEL COOKIES -->
         <form id="formImportState" class="space-y-4 hidden" enctype="multipart/form-data">
@@ -291,28 +261,28 @@
     }
 
     function switchLoginTab(tab) {
+        const btnVisual = document.getElementById('tabBtnVisual');
         const btnExtension = document.getElementById('tabBtnExtension');
-        const btnDirect = document.getElementById('tabBtnDirect');
         const btnFile = document.getElementById('tabBtnFile');
         
+        const tabVisual = document.getElementById('tabVisual');
         const tabExtension = document.getElementById('tabExtension');
-        const formDirect = document.getElementById('formDirectLogin');
         const formFile = document.getElementById('formImportState');
 
+        btnVisual.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
         btnExtension.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
-        btnDirect.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
         btnFile.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
 
+        tabVisual.classList.add('hidden');
         tabExtension.classList.add('hidden');
-        formDirect.classList.add('hidden');
         formFile.classList.add('hidden');
 
-        if (tab === 'extension') {
+        if (tab === 'visual') {
+            btnVisual.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
+            tabVisual.classList.remove('hidden');
+        } else if (tab === 'extension') {
             btnExtension.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
             tabExtension.classList.remove('hidden');
-        } else if (tab === 'direct') {
-            btnDirect.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
-            formDirect.classList.remove('hidden');
         } else {
             btnFile.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
             formFile.classList.remove('hidden');
@@ -322,59 +292,44 @@
     function openImportStateModal(id, accountName) {
         currentModalAccountId = id;
         document.getElementById('importAccountId').value = id;
-        document.getElementById('directLoginAccountId').value = id;
         document.getElementById('modalImportAccountTitle').textContent = accountName || '';
         document.getElementById('modalImportState').classList.remove('hidden');
-        switchLoginTab('extension');
+        switchLoginTab('visual');
     }
 
     function closeImportStateModal() {
         document.getElementById('modalImportState').classList.add('hidden');
     }
 
-    // Submit Direct Web UI Login
-    document.getElementById('formDirectLogin').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const id = document.getElementById('directLoginAccountId').value;
-        const formData = new FormData(this);
+    function openVisualBrowserFromModal() {
+        openVisualBrowserLogin(currentModalAccountId, document.getElementById('modalImportAccountTitle').textContent);
+    }
 
-        showLoading('Memproses Login Meta...', 'Membuka Chromium browser untuk mengautentikasi Email & Password ke Facebook Meta...');
+    // Buka Jendela Browser Visual Chromium di Layar Windows
+    function openVisualBrowserLogin(id, accountName) {
+        showLoading('Membuka Browser Visual...', `Jendela Chromium browser sedang dibuka di layar komputer Anda untuk akun '${accountName}'...`);
 
-        fetch(`/meta-accounts/${id}/direct-login`, {
+        fetch(`/meta-accounts/${id}/open-browser-login`, {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json'
-            },
-            body: formData
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                showAlert('success', 'Berhasil Login!', data.message);
+                showAlert('success', 'Browser Visual Dibuka!', data.message);
                 closeImportStateModal();
-
-                const badge = document.getElementById(`account-status-badge-${id}`);
-                const dot = document.getElementById(`account-status-dot-${id}`);
-                const text = document.getElementById(`account-status-text-${id}`);
-                const btnRelogin = document.getElementById(`btn-relogin-${id}`);
-                if (badge && dot && text) {
-                    badge.className = "px-3 py-1 text-xs font-extrabold rounded-full uppercase tracking-wider flex items-center space-x-1.5 bg-emerald-950 text-emerald-300 border border-emerald-800";
-                    dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
-                    text.textContent = "TERHUBUNG";
-                    if (btnRelogin) {
-                        btnRelogin.className = "px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 text-xs font-semibold rounded-xl border border-indigo-800 transition flex items-center justify-center space-x-1";
-                        btnRelogin.innerHTML = '<i class="fa-solid fa-key"></i><span>Login Sesi</span>';
-                    }
-                }
             } else {
-                showAlert('error', 'Gagal Login', data.message);
+                showAlert('info', 'Info Sesi Browser', data.message);
             }
         })
         .catch(err => {
-            showAlert('error', 'Kesalahan Sistem', err.message);
+            showAlert('error', 'Kesalahan Sistem', err.message || 'Gagal membuka browser visual.');
         });
-    });
+    }
 
     // Ambil Portofolio Khusus Per Akun Meta
     function fetchAccountPortfolios(id, accountName) {
@@ -444,10 +399,10 @@
             if (data.screenshot_url) {
                 const actionButtonHtml = !data.is_logged_in ? `
                     <div class="pt-2">
-                        <button onclick="Swal.close(); openImportStateModal(${id}, '${accountName}')" 
-                                class="w-full py-2.5 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
-                            <i class="fa-solid fa-key text-sm"></i>
-                            <span>🔑 Klik Di Sini Untuk Login Ulang & Connect Sesi</span>
+                        <button onclick="Swal.close(); openVisualBrowserLogin(${id}, '${accountName}')" 
+                                class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-window-restore text-sm"></i>
+                            <span>🖥️ Klik Di Sini Untuk Buka Browser Visual & Login (Passkey)</span>
                         </button>
                     </div>
                 ` : '';
@@ -481,7 +436,7 @@
         });
     }
 
-    // Submit Import Sesi File state.json atau Teks Cookie JSON
+    // Submit Import Sesi File state.json
     document.getElementById('formImportState').addEventListener('submit', function(e) {
         e.preventDefault();
         const id = document.getElementById('importAccountId').value;

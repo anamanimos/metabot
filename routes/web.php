@@ -33,6 +33,7 @@ Route::get('meta-accounts/{id}/check-status', [MetaAccountController::class, 'ch
 Route::post('meta-accounts/{id}/import-state', [MetaAccountController::class, 'importState'])->name('meta-accounts.importState');
 Route::post('meta-accounts/{id}/fetch-portfolios', [MetaAccountController::class, 'fetchPortfolios'])->name('meta-accounts.fetchPortfolios');
 Route::post('meta-accounts/{id}/direct-login', [MetaAccountController::class, 'directLogin'])->name('meta-accounts.directLogin');
+Route::post('meta-accounts/{id}/open-browser-login', [MetaAccountController::class, 'openBrowserLogin'])->name('meta-accounts.openBrowserLogin');
 
 // Portfolios Scanning Route
 Route::post('portfolios/fetch', [PortfolioController::class, 'fetchPortfolios'])->name('portfolios.fetch');

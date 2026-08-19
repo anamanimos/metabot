@@ -150,6 +150,57 @@ class MetaAccountController extends Controller
     }
 
     /**
+     * Membuka Jendela Browser Chromium Visual di Layar Windows untuk Login Manual & Passkey
+     */
+    public function openBrowserLogin(Request $request, $id)
+    {
+        try {
+            set_time_limit(360);
+            $account = MetaAccount::findOrFail($id);
+            $basePath = base_path();
+            $pythonBin = $this->getPythonBinary();
+
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                $cmd = "start \"Login Meta Visual Browser\" cmd /k \"cd /d \"{$basePath}\" && {$pythonBin} open_browser_login.py --user_data={$account->session_folder}\"";
+                pclose(popen($cmd, "r"));
+                $msg = "Jendela browser Chromium visual telah dibuka di layar komputer Anda! Silakan lakukan login / verifikasi Passkey di browser tersebut.";
+                $success = true;
+            } else {
+                $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
+                $cmd = "export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && cd \"{$basePath}\" && {$venvPython} open_browser_login.py --user_data={$account->session_folder}";
+                $output = shell_exec($cmd);
+                
+                $jsonResult = null;
+                if ($output) {
+                    $lines = array_filter(array_map('trim', explode("\n", $output)));
+                    foreach (array_reverse($lines) as $line) {
+                        if (str_starts_with($line, '{') && str_ends_with($line, '}')) {
+                            $jsonResult = @json_decode($line, true);
+                            if ($jsonResult) break;
+                        }
+                    }
+                }
+                $success = $jsonResult['success'] ?? false;
+                $msg = $jsonResult['message'] ?? ($success ? "Berhasil Login!" : "Proses Selesai.");
+            }
+
+            if ($success) {
+                $account->status = 'active';
+                $account->save();
+            }
+
+            return response()->json([
+                'success' => true,
+                'status' => $account->status,
+                'message' => $msg
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Gagal membuka browser: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Memeriksa Status Login Akun Meta dengan Tangkapan Layar (Screenshot) Live & Menyimpan Status Persisten ke DB
      */
     public function checkStatus($id)
@@ -291,7 +342,6 @@ class MetaAccountController extends Controller
                 return response()->json(['success' => false, 'message' => 'Format JSON cookie tidak valid! Harus berupa objek JSON state Playwright.'], 400);
             }
 
-            // Jika input berupa array cookie langsung (hasil export Cookie-Editor extension), bungkus menjadi objek Playwright state
             if (isset($parsed[0]) && is_array($parsed[0])) {
                 $parsed = [
                     'cookies' => $parsed,
