@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Schedule;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ScheduleController extends Controller
 {
@@ -144,8 +145,13 @@ class ScheduleController extends Controller
                 pclose(popen($cmd, "r"));
             } else {
                 $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
-                $cmd = "cd \"{$basePath}\" && export PLAYWRIGHT_BROWSERS_PATH=/home/nams/.cache/ms-playwright && xvfb-run -a {$venvPython} scheduler.py > storage/logs/bot_runner.log 2>&1 &";
-                exec($cmd);
+                $logFile = base_path('storage/logs/bot_runner.log');
+                @touch($logFile);
+                @chmod($logFile, 0777);
+
+                $cmd = "export HOME=/home/nams && export PLAYWRIGHT_BROWSERS_PATH=/home/nams/.cache/ms-playwright && cd \"{$basePath}\" && xvfb-run -a {$venvPython} scheduler.py >> storage/logs/bot_runner.log 2>&1 &";
+                exec($cmd, $output, $returnVar);
+                Log::info("Bot exec triggered: {$cmd} | Exit Code: {$returnVar}");
             }
 
             $msg = "Berhasil memicu eksekusi " . count($jsonExport) . " item PENDING! Bot Playwright sedang memproses di latar belakang.";
