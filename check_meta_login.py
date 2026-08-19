@@ -6,14 +6,6 @@ import time
 import argparse
 from pathlib import Path
 
-# Force UTF-8 output
-if sys.platform == 'win32':
-    try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-    except Exception:
-        pass
-
 # Set shared Playwright browser path to /var/www/meta.damaijaya.my.id/ms-playwright if available
 shared_browser_dir = Path("/var/www/meta.damaijaya.my.id/ms-playwright")
 if shared_browser_dir.exists():
@@ -68,7 +60,7 @@ def check_login():
                     pass
 
             page = context.pages[0] if context.pages else context.new_page()
-            page.goto("https://business.facebook.com/latest/home", wait_until="networkidle")
+            page.goto("https://business.facebook.com/latest/home", wait_until="domcontentloaded")
             time.sleep(4)
 
             current_url = page.url
@@ -91,9 +83,10 @@ def check_login():
 
     except Exception as e:
         result["logged_in"] = False
-        result["message"] = f"Gagal memeriksa sesi Meta: {str(e)}"
+        result["message"] = f"Gagal mengecek sesi Meta: {str(e)}"
 
-    print(json.dumps(result))
+    return result
 
 if __name__ == "__main__":
-    check_login()
+    res = check_login()
+    print(json.dumps(res))

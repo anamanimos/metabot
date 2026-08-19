@@ -171,6 +171,7 @@ class MetaAccountController extends Controller
     public function checkStatus($id)
     {
         try {
+            set_time_limit(120);
             $account = MetaAccount::findOrFail($id);
             $basePath = base_path();
             $pythonBin = $this->getPythonBinary();
@@ -178,14 +179,25 @@ class MetaAccountController extends Controller
             $outputPath = "public/storage/previews/meta_account_{$account->id}.png";
 
             if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                $cmd = "{$pythonBin} check_meta_login.py --user_data={$account->session_folder} --output={$outputPath}";
+                $cmd = "cd /d \"{$basePath}\" && {$pythonBin} check_meta_login.py --user_data={$account->session_folder} --output={$outputPath}";
             } else {
                 $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
                 $cmd = "export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && cd \"{$basePath}\" && xvfb-run -a {$venvPython} check_meta_login.py --user_data={$account->session_folder} --output={$outputPath}";
             }
 
             $output = shell_exec($cmd);
-            $jsonResult = @json_decode($output, true);
+            
+            // Ekstrak baris JSON dari keluaran terminal
+            $jsonResult = null;
+            if ($output) {
+                $lines = array_filter(array_map('trim', explode("\n", $output)));
+                foreach (array_reverse($lines) as $line) {
+                    if (str_starts_with($line, '{') && str_ends_with($line, '}')) {
+                        $jsonResult = @json_decode($line, true);
+                        if ($jsonResult) break;
+                    }
+                }
+            }
 
             $isLoggedIn = $jsonResult['logged_in'] ?? false;
             $screenshotUrl = $jsonResult['screenshot'] ?? null;
