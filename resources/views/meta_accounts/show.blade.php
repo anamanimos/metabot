@@ -67,14 +67,14 @@
         </div>
     </div>
 
-    <!-- Section Aset Bisnis / Portofolio Terikat -->
+    <!-- Section Aset Bisnis / Portofolio Terikat (Struktur 2-Tingkat) -->
     <div class="card-dark rounded-2xl p-6 space-y-4 shadow-xl border border-gray-800">
         <div class="flex items-center justify-between border-b border-gray-800 pb-3">
             <h2 class="text-lg font-bold text-white flex items-center space-x-2">
                 <i class="fa-solid fa-briefcase text-indigo-400"></i>
-                <span>Aset Bisnis / Portofolio Terikat (Halaman FB & Profil IG)</span>
+                <span>Aset Bisnis 2-Tingkat (Halaman FB & Profil IG Per Grup)</span>
             </h2>
-            <span class="text-xs text-gray-400">Total: <strong>{{ $account->portfolios->count() }} Aset</strong></span>
+            <span class="text-xs text-gray-400">Total: <strong>{{ $account->portfolios->count() }} Aset Spesifik</strong></span>
         </div>
 
         @if($account->portfolios->isEmpty())
@@ -83,14 +83,40 @@
                 <p class="text-xs text-gray-400">Klik tombol <strong>"Ambil Portofolio Akun Ini"</strong> di atas untuk memindai aset bisnis dari Meta.</p>
             </div>
         @else
+            @php
+                $groupedPortfolios = $account->portfolios->groupBy(function($item) {
+                    return $item->portfolio_name ?? $item->name;
+                });
+            @endphp
+
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                @foreach($account->portfolios as $portfolio)
-                    <div class="bg-gray-900/80 border border-gray-800 p-4 rounded-xl space-y-2 hover:border-indigo-500/50 transition">
-                        <div class="flex items-center space-x-2">
-                            <div class="p-2 bg-indigo-900/40 text-indigo-400 rounded-lg text-sm">
-                                <i class="fa-solid fa-building"></i>
+                @foreach($groupedPortfolios as $groupName => $assets)
+                    <div class="bg-gray-900/80 border border-gray-800 p-4 rounded-xl space-y-3 hover:border-indigo-500/50 transition shadow">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="p-2 bg-indigo-900/40 text-indigo-400 rounded-lg text-sm">
+                                    <i class="fa-solid fa-building"></i>
+                                </div>
+                                <h4 class="font-bold text-white text-sm truncate">{{ $groupName }}</h4>
                             </div>
-                            <h4 class="font-bold text-white text-sm truncate">{{ $portfolio->name }}</h4>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800">
+                                {{ $assets->count() }} Aset
+                            </span>
+                        </div>
+
+                        <div class="space-y-1.5 pt-2 border-t border-gray-800 text-xs">
+                            @foreach($assets as $assetItem)
+                                <div class="p-2 bg-gray-950/60 rounded-lg border border-gray-800/80 space-y-0.5">
+                                    <div class="font-semibold text-gray-200 truncate">
+                                        {{ $assetItem->asset_name ?? $assetItem->name }}
+                                    </div>
+                                    @if($assetItem->asset_type)
+                                        <div class="text-[10px] text-indigo-400/80 truncate">
+                                            <i class="fa-solid fa-layer-group text-[9px] mr-1"></i>{{ $assetItem->asset_type }}
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 @endforeach
@@ -128,7 +154,7 @@
                             <td class="px-6 py-4 font-semibold text-gray-300"><i class="fa-regular fa-clock text-indigo-400 mr-1"></i>{{ $proj->target_time }} WIB</td>
                             <td class="px-6 py-4 text-xs text-gray-400">{{ $proj->images_per_post }} Gambar / Story</td>
                             <td class="px-6 py-4">
-                                <span class="px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wider {{ $proj->status === 'active' ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700' : 'bg-amber-900/60 text-amber-300 border border-amber-700' }}">
+                                <span class="px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wider {{ $proj->status === 'active' ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700' : 'bg-amber-900/60 text-amber-700 border border-amber-700' }}">
                                     {{ $proj->status }}
                                 </span>
                             </td>

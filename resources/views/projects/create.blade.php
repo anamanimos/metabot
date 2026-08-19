@@ -51,10 +51,25 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Aset Bisnis Target</label>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Aset Bisnis Target (2-Tingkat)</label>
                     <select name="portfolio_name" id="selectPortfolio" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition">
-                        @foreach($portfolios as $p)
-                            <option value="{{ $p->name }}" data-account="{{ $p->meta_account_id }}">{{ $p->name }}</option>
+                        @php
+                            $grouped = $portfolios->groupBy(function($item) {
+                                return $item->portfolio_name ?? $item->name;
+                            });
+                        @endphp
+                        @foreach($grouped as $groupName => $items)
+                            <optgroup label="📂 {{ $groupName }}">
+                                @foreach($items as $p)
+                                    @php
+                                        $val = $p->combined_target ?? ($p->portfolio_name ? ($p->portfolio_name . ' - ' . $p->asset_name) : $p->name);
+                                        $label = $p->asset_name 
+                                            ? ($groupName . ' → ' . $p->asset_name . ($p->asset_type ? ' (' . $p->asset_type . ')' : ''))
+                                            : $p->name;
+                                    @endphp
+                                    <option value="{{ $val }}" data-account="{{ $p->meta_account_id }}">{{ $label }}</option>
+                                @endforeach
+                            </optgroup>
                         @endforeach
                     </select>
                 </div>
@@ -241,7 +256,6 @@
             excludeDaysWrapper.classList.add('hidden');
             onceNotice.classList.remove('hidden');
 
-            // Auto set target time to now + 30 mins if date is today
             const now = new Date();
             now.setMinutes(now.getMinutes() + 30);
             const hours = String(now.getHours()).padStart(2, '0');
@@ -256,7 +270,6 @@
         }
     }
 
-    // Filter Portfolios by Account
     function filterPortfoliosByAccount() {
         const accId = document.getElementById('selectMetaAccount').value;
         const portfolioSelect = document.getElementById('selectPortfolio');
@@ -282,7 +295,6 @@
     filterPortfoliosByAccount();
     toggleRepeatFields();
 
-    // Instant Media Preview Grid & Lightbox Preparation
     document.getElementById('inputMediaFiles').addEventListener('change', function() {
         const files = Array.from(this.files);
         const container = document.getElementById('previewContainer');
@@ -334,7 +346,6 @@
         });
     });
 
-    // Lightbox Controls
     function openLightbox(index) {
         if (lightboxItems.length === 0) return;
         currentLightboxIdx = index;
@@ -378,7 +389,6 @@
         capEl.textContent = `${currentLightboxIdx + 1} / ${lightboxItems.length} - ${item.name}`;
     }
 
-    // Keyboard navigation
     document.addEventListener('keydown', function(e) {
         const modal = document.getElementById('lightboxModal');
         if (!modal.classList.contains('hidden')) {
@@ -388,7 +398,6 @@
         }
     });
 
-    // Form Submit Handler
     document.getElementById('formCreateProject').addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(this);

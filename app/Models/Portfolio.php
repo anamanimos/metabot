@@ -10,6 +10,10 @@ class Portfolio extends Model
     protected $fillable = [
         'meta_account_id',
         'name',
+        'portfolio_name',
+        'asset_name',
+        'asset_type',
+        'combined_target',
     ];
 
     public function metaAccount(): BelongsTo

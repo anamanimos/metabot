@@ -51,31 +51,36 @@ class PortfolioController extends Controller
                 }
             }
 
-            // Load & Sync data Aset Bisnis terikat Akun Meta ke Database MySQL
+            // Load & Sync data 2-tingkat Aset Bisnis terikat Akun Meta ke Database MySQL
             if (file_exists($jsonFile)) {
                 $content = json_decode(file_get_contents($jsonFile), true);
                 if (is_array($content) && count($content) > 0 && $account) {
-                    Portfolio::where('meta_account_id', $account->id)->delete();
                     foreach ($content as $p) {
-                        if (!empty($p['name'])) {
-                            $name = trim($p['name']);
-                            if (strlen($name) >= 2) {
-                                Portfolio::firstOrCreate([
+                        $combinedTarget = $p['combined_target'] ?? ($p['name'] ?? null);
+                        if (!empty($combinedTarget)) {
+                            Portfolio::updateOrCreate(
+                                [
                                     'meta_account_id' => $account->id,
-                                    'name' => $name,
-                                ]);
-                            }
+                                    'combined_target' => $combinedTarget
+                                ],
+                                [
+                                    'name' => $p['portfolio_name'] ?? $p['name'] ?? $combinedTarget,
+                                    'portfolio_name' => $p['portfolio_name'] ?? $p['name'] ?? null,
+                                    'asset_name' => $p['asset_name'] ?? null,
+                                    'asset_type' => $p['asset_type'] ?? null,
+                                ]
+                            );
                         }
                     }
                 }
             }
 
-            $accountPortfolios = Portfolio::where('meta_account_id', $account?->id)->orderBy('name')->get();
+            $accountPortfolios = Portfolio::where('meta_account_id', $account?->id)->orderBy('portfolio_name')->get();
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => "Aset Bisnis untuk Akun Meta '{$account?->account_name}' berhasil dipindai dan diperbarui!",
+                    'message' => "Aset Bisnis 2-Tingkat untuk Akun Meta '{$account?->account_name}' berhasil dipindai dan diperbarui!",
                     'portfolios' => $accountPortfolios,
                 ]);
             }

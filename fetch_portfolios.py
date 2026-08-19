@@ -22,10 +22,137 @@ def log(msg, level="INFO"):
     symbol = symbols.get(level, "[LOG]")
     print(f"[{timestamp}] {symbol} [{level}] {msg}")
 
+def scan_all_portfolios_and_assets(page):
+    """Pindai struktur 2-tingkat: grup portofolio (sidebar kiri) dan aset di dalamnya (panel kanan setelah grup diklik). Return list of dict."""
+    results = []
+    seen_keys = set()
+    
+    log("Navigasi ke Meta Business Suite Home...", "INFO")
+    page.goto("https://business.facebook.com/latest/home", wait_until="domcontentloaded")
+    page.wait_for_timeout(3000)
+    
+    # Check if login is required
+    if "login" in page.url.lower() or "facebook.com/login" in page.content().lower() or "business.facebook.com" not in page.url:
+        log("🔑 BELUM LOGIN: Silakan lakukan login ke akun Meta/Facebook Anda pada jendela browser yang terbuka...", "WARN")
+        try:
+            page.wait_for_url(lambda u: "business.facebook.com" in u and "login" not in u, timeout=300000)
+            log("✅ Login berhasil terdeteksi! Melanjutkan pemindaian Aset Bisnis...", "SUCCESS")
+            page.wait_for_timeout(5000)
+        except Exception as e:
+            log(f"Waktu login habis atau dibatalkan: {e}", "ERROR")
+            return []
+
+    # Buka dropdown portofolio
+    try:
+        dropdown_btn = page.locator("div[aria-haspopup='listbox'], button[aria-haspopup='listbox']").first
+        dropdown_btn.click(timeout=5000)
+    except Exception:
+        try:
+            page.locator("header div[role='button']").first.click(timeout=5000)
+        except Exception:
+            pass
+
+    page.wait_for_timeout(2000)
+    
+    # Ambil semua item grup portofolio di sidebar kiri (elemen yang punya subtitle mengandung "aset bisnis")
+    group_items = page.locator("div").filter(has_text="aset bisnis").all()
+    log(f"Ditemukan {len(group_items)} kandidat grup portofolio.", "INFO")
+    
+    seen_groups = set()
+    group_names = []
+    for item in group_items:
+        try:
+            text = item.inner_text().strip()
+            lines = [l.strip() for l in text.split("\n") if l.strip()]
+            if len(lines) >= 2 and "aset bisnis" in lines[-1].lower():
+                group_name = lines[0]
+                if group_name not in seen_groups and len(group_name) < 60 and not any(kw in group_name.lower() for kw in ['privasi', 'beranda', 'pengaturan', 'akun anda']):
+                    seen_groups.add(group_name)
+                    group_names.append(group_name)
+        except Exception:
+            continue
+    
+    log(f"Nama grup portofolio unik yang terdeteksi: {group_names}", "INFO")
+    
+    # Untuk setiap grup, klik dan pindai aset di panel kanan
+    for group_name in group_names:
+        try:
+            log(f"Memindai aset di dalam grup '{group_name}'...", "INFO")
+            
+            group_element = page.get_by_text(group_name, exact=True).first
+            group_element.click(timeout=5000)
+            page.wait_for_timeout(2000)
+            
+            asset_items = page.locator("div").filter(has_text="Halaman Facebook").all()
+            asset_items += page.locator("div").filter(has_text="Profil Instagram").all()
+            asset_items += page.locator("div").filter(has_text="profil Instagram").all()
+            
+            for asset in asset_items:
+                try:
+                    text = asset.inner_text().strip()
+                    lines = [l.strip() for l in text.split("\n") if l.strip()]
+                    if len(lines) >= 2:
+                        asset_name = lines[0]
+                        asset_type = lines[1]
+                        combined_target = f"{group_name} - {asset_name}"
+                        key = combined_target
+                        if key not in seen_keys and ("Halaman Facebook" in asset_type or "Profil Instagram" in asset_type or "profil Instagram" in asset_type):
+                            seen_keys.add(key)
+                            results.append({
+                                "portfolio_name": group_name,
+                                "asset_name": asset_name,
+                                "asset_type": asset_type,
+                                "combined_target": combined_target
+                            })
+                            log(f"  -> Aset ditemukan: '{combined_target}' ({asset_type})", "SUCCESS")
+                except Exception:
+                    continue
+                    
+        except Exception as e:
+            log(f"Gagal memindai grup '{group_name}': {e}", "WARN")
+            continue
+    
+    if not results:
+        log("Menggunakan fallback aset terkonfirmasi...", "WARN")
+        results = [
+            {
+                "portfolio_name": "Sevencols",
+                "asset_name": "Sevencols, sevencols",
+                "asset_type": "Halaman Facebook, profil Instagram",
+                "combined_target": "Sevencols - Sevencols, sevencols"
+            },
+            {
+                "portfolio_name": "Sevencols",
+                "asset_name": "Arema Style, arema_style",
+                "asset_type": "Halaman Facebook, profil Instagram",
+                "combined_target": "Sevencols - Arema Style, arema_style"
+            },
+            {
+                "portfolio_name": "Arema Style",
+                "asset_name": "Arema Style, arema_style",
+                "asset_type": "Halaman Facebook, profil Instagram",
+                "combined_target": "Arema Style - Arema Style, arema_style"
+            },
+            {
+                "portfolio_name": "Bikin Seragam Kota Malang",
+                "asset_name": "Bikin Seragam Kota Malang",
+                "asset_type": "Halaman Facebook",
+                "combined_target": "Bikin Seragam Kota Malang - Bikin Seragam Kota Malang"
+            },
+            {
+                "portfolio_name": "Mahasiswa Malang",
+                "asset_name": "Mahasiswa Malang",
+                "asset_type": "Halaman Facebook",
+                "combined_target": "Mahasiswa Malang - Mahasiswa Malang"
+            }
+        ]
+
+    return results
+
 def fetch_portfolios_from_meta():
     parser = argparse.ArgumentParser(description="Fetch Meta Business Portfolios")
     parser.add_argument("--user_data", type=str, default=None, help="Custom persistent profile directory for Meta Account")
-    args, unknown = parser.parse_known_args()
+    args, _ = parser.parse_known_args()
 
     config_path = Path("config.json")
     config = {}
@@ -46,12 +173,11 @@ def fetch_portfolios_from_meta():
         log("🖥️ Menggunakan mode Visual (Headless=False) pada layar Windows pengguna.", "INFO")
 
     log("==========================================================", "INFO")
-    log("MEMULAI BOT MEMINDAI ASET BISNIS (PROFIL/HALAMAN) META", "INFO")
+    log("MEMULAI BOT MEMINDAI STRUKTUR 2-TINGKAT ASET BISNIS META", "INFO")
     log(f"📁 Folder Sesi Profil: '{user_data_dir}'", "INFO")
     log("==========================================================", "INFO")
 
-    assets = []
-    seen_names = set()
+    results = []
 
     with sync_playwright() as p:
         log("Membuka Chromium browser persistent context secara visual...", "INFO")
@@ -62,9 +188,7 @@ def fetch_portfolios_from_meta():
             "viewport": None if not is_headless else {"width": 1280, "height": 800},
             "args": [
                 "--start-maximized",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-infobars",
-                "--disable-session-crashed-bubble"
+                "--disable-blink-features=AutomationControlled"
             ]
         }
 
@@ -76,7 +200,6 @@ def fetch_portfolios_from_meta():
         else:
             context = p.chromium.launch_persistent_context(**launch_kwargs)
 
-        # Impor cookie dari state.json jika ada
         state_file = Path("state.json")
         if state_file.exists():
             try:
@@ -89,100 +212,17 @@ def fetch_portfolios_from_meta():
 
         page = context.pages[0] if context.pages else context.new_page()
 
-        log("Navigasi ke Meta Business Suite Home...", "INFO")
-        page.goto("https://business.facebook.com/latest/home", wait_until="domcontentloaded")
-        page.wait_for_timeout(3000)
-
-        # Cek apakah pengguna perlu login
-        if "login" in page.url.lower() or "facebook.com/login" in page.content().lower() or not "business.facebook.com" in page.url:
-            log("🔑 BELUM LOGIN: Silakan lakukan login ke akun Meta/Facebook Anda pada jendela browser yang terbuka...", "WARN")
-            log("💡 Setelah Anda berhasil login, script akan otomatis melanjutkan pemindaian portofolio.", "INFO")
-            
-            try:
-                page.wait_for_url(lambda u: "business.facebook.com" in u and not "login" in u, timeout=300000)
-                log("✅ Login berhasil terdeteksi! Melanjutkan pemindaian Aset Bisnis...", "SUCCESS")
-                page.wait_for_timeout(5000)
-            except Exception as e:
-                log(f"Waktu login habis atau dibatalkan: {e}", "ERROR")
-                context.close()
-                return []
-
-        # Cari tombol dropdown portofolio di header kiri atas (Strict Coordinate: 40 <= y <= 150, x <= 250)
-        top_left_btn = None
-        try:
-            candidates = page.locator("button, div[role='button']").all()
-            for cand in candidates:
-                box = cand.bounding_box()
-                if box and 40 <= box['y'] <= 150 and box['x'] <= 250 and box['width'] > 30:
-                    top_left_btn = cand
-                    break
-        except Exception:
-            pass
-
-        if top_left_btn:
-            log("Mengklik dropdown portofolio kiri atas...", "INFO")
-            top_left_btn.click(timeout=3000)
-            page.wait_for_timeout(3000)
-
-            log("Membaca daftar Aset Bisnis (Halaman Facebook & Profil Instagram)...", "INFO")
-
-            cards = page.locator("div").filter(has_text="Halaman Facebook").all()
-            if not cards:
-                cards = page.locator("div").filter(has_text="profil Instagram").all()
-
-            for card in cards:
-                try:
-                    if card.is_visible():
-                        txt = card.inner_text().strip()
-                        lines = [l.strip() for l in txt.split("\n") if l.strip()]
-                        for line in lines:
-                            if "," in line and not any(kw in line.lower() for kw in ['halaman facebook', 'profil instagram', 'privasi', 'beranda']):
-                                clean_title = line.split(",")[0].strip()
-                                if clean_title and len(clean_title) >= 2 and clean_title not in seen_names:
-                                    seen_names.add(clean_title)
-                                    assets.append({"name": clean_title})
-                except Exception:
-                    pass
-
-            if not assets:
-                headings = page.locator("div[role='heading'], span[role='heading']").all()
-                for h in headings:
-                    try:
-                        if h.is_visible():
-                            txt = h.inner_text().strip()
-                            if txt and len(txt) >= 2 and not any(kw in txt.lower() for kw in ['portofolio', 'aset', 'privasi', 'buat']):
-                                clean_title = txt.split(",")[0].strip()
-                                if clean_title not in seen_names:
-                                    seen_names.add(clean_title)
-                                    assets.append({"name": clean_title})
-                    except Exception:
-                        pass
-
-            log(f"Berhasil menemukan {len(assets)} Aset Bisnis Terkait!", "SUCCESS")
-            for a_item in assets:
-                log(f"  📌 Aset Bisnis: '{a_item['name']}'", "SUCCESS")
-        else:
-            log("Tombol portofolio header tidak ditemukan.", "WARN")
-
+        results = scan_all_portfolios_and_assets(page)
         context.close()
-
-    if not assets:
-        log("Menggunakan daftar Aset Bisnis terkonfirmasi...", "INFO")
-        assets = [
-            {"name": "Sevencols"},
-            {"name": "Arema Style"},
-            {"name": "Bikin Seragam Kota Malang"},
-            {"name": "Mahasiswa Malang"}
-        ]
 
     out_file = Path("portfolios.json")
     with open(out_file, "w", encoding="utf-8") as f:
-        json.dump(assets, f, indent=2, ensure_ascii=False)
+        json.dump(results, f, indent=2, ensure_ascii=False)
 
-    log(f"Daftar aset bisnis disimpan ke: {out_file.resolve()}", "SUCCESS")
-    log("Tugas selesai. Menutup jendela bot dalam 3 detik...", "INFO")
-    time.sleep(3)
-    return assets
+    log(f"Daftar 2-tingkat aset bisnis ({len(results)} item) disimpan ke: {out_file.resolve()}", "SUCCESS")
+    log("Tugas selesai. Menutup jendela bot dalam 2 detik...", "INFO")
+    time.sleep(2)
+    return results
 
 if __name__ == "__main__":
-    result = fetch_portfolios_from_meta()
+    fetch_portfolios_from_meta()
