@@ -291,6 +291,14 @@ class MetaAccountController extends Controller
                 return response()->json(['success' => false, 'message' => 'Format JSON cookie tidak valid! Harus berupa objek JSON state Playwright.'], 400);
             }
 
+            // Jika input berupa array cookie langsung (hasil export Cookie-Editor extension), bungkus menjadi objek Playwright state
+            if (isset($parsed[0]) && is_array($parsed[0])) {
+                $parsed = [
+                    'cookies' => $parsed,
+                    'origins' => []
+                ];
+            }
+
             $statePath = base_path('state.json');
             if (file_exists($statePath)) {
                 @chmod($statePath, 0666);
@@ -306,7 +314,7 @@ class MetaAccountController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Sesi Sembungan untuk '{$account->account_name}' berhasil di-impor & terhubung!",
+                'message' => "Sesi Otentikasi Sempurna untuk '{$account->account_name}' berhasil di-impor & terhubung!",
             ]);
 
         } catch (\Exception $e) {

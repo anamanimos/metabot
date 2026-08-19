@@ -13,7 +13,7 @@
                 <span>Akun Meta (Facebook / Instagram)</span>
             </h1>
             <p class="text-sm text-gray-400 mt-1">
-                Kelola status sesi akun Meta, pindaian portofolio per akun, & Login Tab Manual 1-Klik.
+                Kelola status sesi akun Meta, pindaian portofolio per akun, & impor sesi otentikasi.
             </p>
         </div>
 
@@ -142,7 +142,7 @@
     </div>
 </div>
 
-<!-- Modal Login Tab Manual / Import Sesi Cookie state.json -->
+<!-- Modal Login & Connect Sesi Meta -->
 <div id="modalImportState" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="card-dark w-full max-w-lg rounded-2xl shadow-2xl border border-gray-800 p-6 space-y-5 relative">
         <div class="flex items-center justify-between border-b border-gray-800 pb-3">
@@ -157,9 +157,9 @@
 
         <!-- Navigation Sub-Tabs -->
         <div class="flex border-b border-gray-800 text-xs font-semibold">
-            <button type="button" onclick="switchLoginTab('openTab')" id="tabBtnOpenTab" class="py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2">
-                <i class="fa-solid fa-up-right-from-square"></i>
-                <span>Metode 1: Buka Tab Facebook & Connect</span>
+            <button type="button" onclick="switchLoginTab('extension')" id="tabBtnExtension" class="py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2">
+                <i class="fa-solid fa-puzzle-piece"></i>
+                <span>Metode 1: Cookie-Editor (1-Klik)</span>
             </button>
             <button type="button" onclick="switchLoginTab('direct')" id="tabBtnDirect" class="py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2">
                 <i class="fa-solid fa-right-to-bracket"></i>
@@ -171,38 +171,31 @@
             </button>
         </div>
 
-        <!-- TAB 1: BUKA TAB FACEBOOK LOGIN & CONNECT 1-KLIK -->
-        <div id="tabOpenTab" class="space-y-4">
+        <!-- TAB 1: COOKIE EDITOR EXTENSION (EXPORT HTTPONLY COOKIES 1-KLIK) -->
+        <div id="tabExtension" class="space-y-4">
             <div class="bg-indigo-950/60 border border-indigo-800 p-4 rounded-xl text-xs text-indigo-200 space-y-3">
                 <p class="font-bold flex items-center space-x-2 text-indigo-300 text-sm">
-                    <i class="fa-solid fa-arrow-pointer text-amber-400"></i>
-                    <span>Langkah Mudah Login Manual via Tab Browser:</span>
+                    <i class="fa-solid fa-shield-halved text-amber-400"></i>
+                    <span>Solusi Tercepat & 100% Aman (Membaca Cookie HttpOnly):</span>
                 </p>
                 <ol class="list-decimal list-inside space-y-2 text-[11px] text-indigo-200 leading-relaxed">
-                    <li>Klik tombol hijau <b>"Buka Tab Facebook Login"</b> di bawah untuk membuka Facebook di tab baru browser Anda.</li>
-                    <li>Lakukan login manual ke akun Meta / Facebook Anda seperti biasa di tab baru tersebut.</li>
-                    <li>Setelah login di Facebook, klik <b>"Salin Script 1-Klik"</b> di bawah ini, lalu buka Console DevTools (F12) pada tab Facebook dan paste & tekan Enter. Sesi akan otomatis terhubung tanpa error 419!</li>
+                    <li>Buka Facebook di browser Anda dan pastikan sudah login.</li>
+                    <li>Gunakan Extension Browser <b>Cookie-Editor</b> untuk mengekspor cookie otentikasi lengkap (termasuk <code>c_user</code> & <code>xs</code>).</li>
+                    <li>Klik ikon <b>Cookie-Editor</b> pada browser -> klik <b>Export (JSON)</b> -> tempelkan di Metode 3 atau form di bawah!</li>
                 </ol>
             </div>
 
-            <div class="space-y-2 pt-2">
-                <a href="https://business.facebook.com/latest/home" target="_blank" 
-                   class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-up-right-from-square"></i>
-                    <span>1. Buka Tab Facebook Business Suite (Login Manual)</span>
+            <div class="space-y-2 pt-1">
+                <a href="https://chrome.google.com/webstore/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm" target="_blank" 
+                   class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center justify-center space-x-2">
+                    <i class="fa-brands fa-chrome"></i>
+                    <span>1. Install Extension Cookie-Editor (Chrome Web Store)</span>
                 </a>
 
-                <!-- Bookmarklet Link Drag Button -->
-                <a id="bookmarkletLink" href="#" onclick="alert('Seret (drag) tombol ini ke Bookmark Bar browser Anda, lalu klik tombol ini saat membuka tab Facebook!')"
-                   class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs shadow transition flex items-center justify-center space-x-2 cursor-grab">
-                    <i class="fa-solid fa-bookmark"></i>
-                    <span>📌 2. Drag Tombol Ini ke Bookmark Bar (Hubungkan Sesi)</span>
-                </a>
-
-                <button onclick="copyBookmarkletScript()" 
-                        class="w-full py-2 bg-indigo-950 hover:bg-indigo-900 text-indigo-200 font-bold rounded-xl text-xs border border-indigo-700 transition flex items-center justify-center space-x-2 shadow">
-                    <i class="fa-solid fa-copy text-amber-400"></i>
-                    <span>Salin Script 1-Klik (Async Fetch Tanpa Error 419)</span>
+                <button onclick="switchLoginTab('file')" 
+                        class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-paste"></i>
+                    <span>2. Tempel Teks Cookie JSON di Sini</span>
                 </button>
             </div>
         </div>
@@ -250,13 +243,14 @@
             </div>
         </form>
 
-        <!-- TAB 3: UNGGAH FILE STATE.JSON -->
+        <!-- TAB 3: UNGGAH FILE STATE.JSON / TEMPEL COOKIES -->
         <form id="formImportState" class="space-y-4 hidden" enctype="multipart/form-data">
             <input type="hidden" id="importAccountId" name="account_id">
 
             <div>
-                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Unggah File state.json (Playwright Cookie Format)</label>
-                <input type="file" name="state_file" accept=".json" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Tempel Teks Cookie JSON (Hasil Export Cookie-Editor / Playwright)</label>
+                <textarea name="state_json" rows="5" placeholder='[{"name": "c_user", "value": "1000..."}, {"name": "xs", "value": "..."}]' 
+                          class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"></textarea>
             </div>
 
             <div class="relative flex py-1 items-center">
@@ -266,16 +260,15 @@
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Tempel Teks JSON Cookies</label>
-                <textarea name="state_json" rows="4" placeholder='{"cookies": [{"name": "c_user", "value": "..."}, ...]}' 
-                          class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"></textarea>
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Unggah File state.json</label>
+                <input type="file" name="state_file" accept=".json" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
             </div>
 
             <div class="pt-3 border-t border-gray-800 flex justify-end space-x-3">
                 <button type="button" onclick="closeImportStateModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl text-xs transition">
                     Batal
                 </button>
-                <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
+                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition shadow-lg flex items-center space-x-2">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                     <span>Simpan & Hubungkan Sesi</span>
                 </button>
@@ -298,25 +291,25 @@
     }
 
     function switchLoginTab(tab) {
-        const btnOpenTab = document.getElementById('tabBtnOpenTab');
+        const btnExtension = document.getElementById('tabBtnExtension');
         const btnDirect = document.getElementById('tabBtnDirect');
         const btnFile = document.getElementById('tabBtnFile');
         
-        const tabOpenTab = document.getElementById('tabOpenTab');
+        const tabExtension = document.getElementById('tabExtension');
         const formDirect = document.getElementById('formDirectLogin');
         const formFile = document.getElementById('formImportState');
 
-        btnOpenTab.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
+        btnExtension.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
         btnDirect.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
         btnFile.className = "py-2.5 px-4 text-gray-400 hover:text-white transition flex items-center space-x-2";
 
-        tabOpenTab.classList.add('hidden');
+        tabExtension.classList.add('hidden');
         formDirect.classList.add('hidden');
         formFile.classList.add('hidden');
 
-        if (tab === 'openTab') {
-            btnOpenTab.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
-            tabOpenTab.classList.remove('hidden');
+        if (tab === 'extension') {
+            btnExtension.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
+            tabExtension.classList.remove('hidden');
         } else if (tab === 'direct') {
             btnDirect.className = "py-2.5 px-4 text-indigo-400 border-b-2 border-indigo-500 font-bold transition flex items-center space-x-2";
             formDirect.classList.remove('hidden');
@@ -326,30 +319,13 @@
         }
     }
 
-    function updateBookmarkletHref(id) {
-        const scriptCode = `javascript:(function(){var cookies=document.cookie.split(';').map(function(c){var p=c.trim().split('=');return{name:p[0],value:p.slice(1).join('='),domain:'.facebook.com',path:'/'};});var stateData={cookies:cookies,origins:[]};var formData=new FormData();formData.append('state_json',JSON.stringify(stateData));fetch('https://meta.damaijaya.my.id/meta-accounts/${id}/import-state',{method:'POST',body:formData}).then(function(res){return res.json();}).then(function(data){if(data.success){alert('✅ SESI BERHASIL TERHUBUNG! Sesi Meta Account Anda telah aktif.');}else{alert('❌ Gagal: '+data.message);}}).catch(function(err){alert('❌ Error: '+err.message);});})();`;
-        document.getElementById('bookmarkletLink').href = scriptCode;
-    }
-
-    function copyBookmarkletScript() {
-        const id = currentModalAccountId;
-        const scriptCode = `javascript:(function(){var cookies=document.cookie.split(';').map(function(c){var p=c.trim().split('=');return{name:p[0],value:p.slice(1).join('='),domain:'.facebook.com',path:'/'};});var stateData={cookies:cookies,origins:[]};var formData=new FormData();formData.append('state_json',JSON.stringify(stateData));fetch('https://meta.damaijaya.my.id/meta-accounts/${id}/import-state',{method:'POST',body:formData}).then(function(res){return res.json();}).then(function(data){if(data.success){alert('✅ SESI BERHASIL TERHUBUNG! Sesi Meta Account Anda telah aktif.');}else{alert('❌ Gagal: '+data.message);}}).catch(function(err){alert('❌ Error: '+err.message);});})();`;
-        
-        navigator.clipboard.writeText(scriptCode).then(() => {
-            showAlert('success', 'Kode Async Berhasil Disalin!', 'Buka Console (F12) pada tab Facebook Anda, lalu paste & tekan Enter. Sesi akan otomatis terhubung tanpa error 419!');
-        }).catch(err => {
-            showAlert('error', 'Gagal Menyalin', err.message);
-        });
-    }
-
     function openImportStateModal(id, accountName) {
         currentModalAccountId = id;
         document.getElementById('importAccountId').value = id;
         document.getElementById('directLoginAccountId').value = id;
         document.getElementById('modalImportAccountTitle').textContent = accountName || '';
-        updateBookmarkletHref(id);
         document.getElementById('modalImportState').classList.remove('hidden');
-        switchLoginTab('openTab');
+        switchLoginTab('extension');
     }
 
     function closeImportStateModal() {
@@ -471,7 +447,7 @@
                         <button onclick="Swal.close(); openImportStateModal(${id}, '${accountName}')" 
                                 class="w-full py-2.5 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
                             <i class="fa-solid fa-key text-sm"></i>
-                            <span>🔑 Klik Di Sini Untuk Buka Tab Facebook & Connect Sesi</span>
+                            <span>🔑 Klik Di Sini Untuk Login Ulang & Connect Sesi</span>
                         </button>
                     </div>
                 ` : '';
@@ -505,7 +481,7 @@
         });
     }
 
-    // Submit Import Sesi File state.json
+    // Submit Import Sesi File state.json atau Teks Cookie JSON
     document.getElementById('formImportState').addEventListener('submit', function(e) {
         e.preventDefault();
         const id = document.getElementById('importAccountId').value;
