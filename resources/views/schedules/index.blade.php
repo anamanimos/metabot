@@ -158,9 +158,11 @@
                                         PROCESSING
                                     </span>
                                 @else
-                                    <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-red-950 text-red-300 border border-red-800">
-                                        FAILED
-                                    </span>
+                                    <button onclick="showDetailedErrorModal('{{ $item->item_code }}', '{{ e($item->notes) }}')" 
+                                            class="px-2.5 py-1 text-xs font-bold rounded-full bg-red-950 text-red-300 border border-red-800 hover:bg-red-900 transition flex items-center space-x-1 cursor-pointer">
+                                        <span>FAILED</span>
+                                        <i class="fa-solid fa-circle-info text-[10px]"></i>
+                                    </button>
                                 @endif
                             </td>
 

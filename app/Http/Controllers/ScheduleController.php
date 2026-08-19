@@ -179,6 +179,7 @@ class ScheduleController extends Controller
         $totalCount = Schedule::count();
 
         $latestUpdated = Schedule::orderBy('updated_at', 'desc')->first();
+        $latestFailed = Schedule::where('status', 'failed')->orderBy('updated_at', 'desc')->first();
 
         return response()->json([
             'pending' => $pendingCount,
@@ -187,6 +188,8 @@ class ScheduleController extends Controller
             'total' => $totalCount,
             'latest_item' => $latestUpdated ? $latestUpdated->item_code : null,
             'latest_note' => $latestUpdated ? $latestUpdated->notes : null,
+            'failed_item' => $latestFailed ? $latestFailed->item_code : null,
+            'failed_note' => $latestFailed ? $latestFailed->notes : null,
             'updated_at' => $latestUpdated ? $latestUpdated->updated_at->diffForHumans() : null,
         ]);
     }

@@ -5,6 +5,7 @@ import json
 import time
 import random
 import sqlite3
+import traceback
 import requests
 from datetime import datetime
 from pathlib import Path
@@ -169,7 +170,7 @@ def download_media_if_url(media_path, custom_filename=None, temp_dir="./temp_med
             alt_path = Path("public" + media_path if media_path.startswith("/") else "public/" + media_path).resolve()
             if alt_path.exists():
                 return str(alt_path)
-            raise FileNotFoundError(f"File media lokal tidak ditemukan: {media_path}")
+            raise FileNotFoundError(f"File media lokal tidak ditemukan pada sistem: '{media_path}'")
         return str(local_path)
 
 def select_portfolio(page, target_portfolio_name):
@@ -411,7 +412,6 @@ def main():
 
     log(f"Menemukan {len(schedules)} item PENDING dalam antrean schedule.json.", "INFO")
 
-    # Cari user_data_dir dari argumen atau deteksi folder user_data* di direktori saat ini
     user_data_dir = None
     for arg in sys.argv:
         if arg.startswith("--user_data="):
@@ -452,8 +452,9 @@ def main():
                 success_count += 1
             except Exception as e:
                 fail_count += 1
-                log(f"GAGAL menjadwalkan item [{item_code}]: {e}", "ERROR")
-                update_db_schedule_status(item_code, "failed", f"Gagal diproses bot: {str(e)[:200]}")
+                error_detail = str(e).strip().replace('\n', ' ')
+                log(f"GAGAL menjadwalkan item [{item_code}]: {error_detail}", "ERROR")
+                update_db_schedule_status(item_code, "failed", f"❌ ERROR BOT ({datetime.now().strftime('%H:%M')}): {error_detail[:250]}")
 
         context.close()
 

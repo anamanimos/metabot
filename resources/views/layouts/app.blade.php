@@ -110,11 +110,11 @@
 
     <!-- Floating Live Progress Widget Kanan Bawah -->
     <div id="botProgressWidget" class="fixed bottom-6 right-6 z-50 hidden max-w-sm w-full transition-all duration-300">
-        <div class="bg-gray-900/95 backdrop-blur-xl border border-indigo-500/40 rounded-2xl p-4 shadow-2xl space-y-3 relative overflow-hidden">
+        <div id="widgetContainer" class="bg-gray-900/95 backdrop-blur-xl border border-indigo-500/40 rounded-2xl p-4 shadow-2xl space-y-3 relative overflow-hidden">
             <!-- Top Header Widget -->
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2.5">
-                    <div class="relative flex h-3 w-3">
+                    <div class="relative flex h-3 w-3" id="widgetStatusDot">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                     </div>
@@ -151,6 +151,15 @@
                 </div>
             </div>
 
+            <!-- Detailed Error Trace Box (Jika Terjadi Error) -->
+            <div id="widgetErrorBox" class="hidden text-[11px] text-red-300 bg-red-950/60 p-3 rounded-xl border border-red-800 space-y-1">
+                <div class="font-bold flex items-center space-x-1.5 text-red-400">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Detail Error Eksekusi Bot:</span>
+                </div>
+                <p class="font-mono text-[10px] text-red-200/90 break-words" id="widgetErrorDetail"></p>
+            </div>
+
             <!-- Latest Activity Log -->
             <div class="text-[10px] text-gray-400 bg-gray-950/60 p-2 rounded-lg border border-gray-800 font-mono truncate" id="widgetLatestNote">
                 Menunggu respon bot...
@@ -173,14 +182,29 @@
             if (progressInterval) clearInterval(progressInterval);
         }
 
+        function showDetailedErrorModal(itemCode, errorText) {
+            Swal.fire({
+                icon: 'error',
+                title: `Detail Error Item (${itemCode})`,
+                html: `<div class="text-left font-mono text-xs bg-gray-950 p-4 rounded-xl text-red-300 border border-red-900 overflow-x-auto max-h-60 leading-relaxed">${errorText}</div>`,
+                confirmButtonText: 'Tutup',
+                customClass: {
+                    popup: 'swal2-popup-dark',
+                    title: 'swal2-title-dark',
+                    htmlContainer: 'swal2-html-dark'
+                }
+            });
+        }
+
         function startProgressPolling(initialCount) {
             batchInitialPending = initialCount || 0;
             showProgressWidget();
             if (progressInterval) clearInterval(progressInterval);
 
-            // Tampilkan 0% di awal
             document.getElementById('widgetProgressBar').style.width = '0%';
             document.getElementById('widgetStatusText').textContent = `🚀 Memproses ${batchInitialPending} item PENDING...`;
+            document.getElementById('widgetErrorBox').classList.add('hidden');
+            document.getElementById('widgetContainer').className = "bg-gray-900/95 backdrop-blur-xl border border-indigo-500/40 rounded-2xl p-4 shadow-2xl space-y-3 relative overflow-hidden";
 
             progressInterval = setInterval(() => {
                 fetch("{{ route('schedules.executionProgress') }}")
@@ -194,7 +218,13 @@
                         document.getElementById('widgetLatestNote').textContent = data.latest_note;
                     }
 
-                    // Hitung progress khusus antrean batch saat ini (bukan total historical completed)
+                    // Tampilkan Error Box jika ada item yang FAILED
+                    if (data.failed > 0 && data.failed_note) {
+                        document.getElementById('widgetErrorBox').classList.remove('hidden');
+                        document.getElementById('widgetErrorDetail').textContent = `[${data.failed_item}] ${data.failed_note}`;
+                        document.getElementById('widgetContainer').className = "bg-gray-900/95 backdrop-blur-xl border border-red-500/80 rounded-2xl p-4 shadow-2xl space-y-3 relative overflow-hidden shadow-red-950/50";
+                    }
+
                     if (batchInitialPending > 0) {
                         const processedInBatch = Math.max(0, batchInitialPending - data.pending);
                         const pct = Math.min(100, Math.round((processedInBatch / batchInitialPending) * 100));
@@ -204,12 +234,16 @@
                     if (data.pending > 0) {
                         document.getElementById('widgetStatusText').textContent = `🚀 Memproses antrean... Tersisa ${data.pending} item PENDING`;
                     } else {
-                        document.getElementById('widgetStatusText').textContent = `✅ Seluruh ${batchInitialPending} antrean PENDING selesai diproses!`;
-                        document.getElementById('widgetProgressBar').style.width = `100%`;
-                        setTimeout(() => {
-                            hideProgressWidget();
-                            window.location.reload();
-                        }, 4000);
+                        if (data.failed > 0) {
+                            document.getElementById('widgetStatusText').textContent = `⚠️ Selesai dengan ${data.failed} item GAGAL. Cek detail error di atas.`;
+                        } else {
+                            document.getElementById('widgetStatusText').textContent = `✅ Seluruh ${batchInitialPending} antrean PENDING selesai diproses!`;
+                            document.getElementById('widgetProgressBar').style.width = `100%`;
+                            setTimeout(() => {
+                                hideProgressWidget();
+                                window.location.reload();
+                            }, 5000);
+                        }
                     }
                 })
                 .catch(err => {
