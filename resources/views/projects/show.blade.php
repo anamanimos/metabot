@@ -125,7 +125,7 @@
                         <th class="px-6 py-4">Tanggal Tayang</th>
                         <th class="px-6 py-4">Jam Tayang</th>
                         <th class="px-6 py-4">Status</th>
-                        <th class="px-6 py-4">Catatan</th>
+                        <th class="px-6 py-4 text-right">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800">
@@ -153,7 +153,14 @@
                                     <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-red-950 text-red-300 border border-red-800">FAILED</span>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-xs text-gray-400">{{ $item->notes }}</td>
+                            <td class="px-6 py-4 text-right">
+                                <button onclick="runSingleSchedule({{ $item->id }}, '{{ $item->item_code }}')" 
+                                        class="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1.5"
+                                        title="Kirim item jadwal ini saja secara satuan">
+                                    <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                                    <span>{{ $item->status === 'failed' ? 'Kirim Ulang' : 'Kirim Satuan' }}</span>
+                                </button>
+                            </td>
                         </tr>
                     @empty
                         <tr>
@@ -201,6 +208,31 @@
 
 @section('scripts')
 <script>
+    function runSingleSchedule(id, itemCode) {
+        showLoading('Memproses Pengiriman Satuan...', `Memicu eksekusi bot Playwright khusus untuk item '${itemCode}'...`);
+
+        fetch(`/schedules/${id}/run-single`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Berhasil Diprosed!', data.message);
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('error', 'Gagal Eksekusi', data.message);
+            }
+        })
+        .catch(err => {
+            showAlert('error', 'Kesalahan Sistem', err.message);
+        });
+    }
+
     function openAddMediaModal() {
         document.getElementById('modalAddMedia').classList.remove('hidden');
     }

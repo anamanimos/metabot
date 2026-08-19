@@ -82,6 +82,116 @@ class ScheduleController extends Controller
         return redirect()->back()->with('success', 'Jadwal berhasil dihapus.');
     }
 
+    /**
+     * Kirim Ulang Seluruh Item Antrean yang Error / Failed
+     */
+    public function retryFailed(Request $request)
+    {
+        try {
+            $failedCount = Schedule::where('status', 'failed')->count();
+            if ($failedCount === 0) {
+                $msg = 'Tidak ada item antrean yang berstatus FAILED saat ini.';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $msg]);
+                }
+                return redirect()->back()->with('info', $msg);
+            }
+
+            Schedule::where('status', 'failed')->update([
+                'status' => 'pending',
+                'notes' => 'Di-reset untuk dikirim ulang via Web UI',
+                'updated_at' => now(),
+            ]);
+
+            return $this->syncAndRunBot($request);
+
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Gagal mereset item failed: ' . $e->getMessage()], 500);
+            }
+            return redirect()->back()->with('error', 'Gagal mereset item failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Kirim Satuan Item Schedule Tertentu Secara Langsung
+     */
+    public function runSingle(Request $request, $id)
+    {
+        try {
+            $schedule = Schedule::with(['mediaFile', 'project'])->findOrFail($id);
+            
+            $schedule->status = 'pending';
+            $schedule->notes = 'Diproses pengiriman satuan via Web UI pada ' . now()->format('H:i');
+            $schedule->save();
+
+            $mediaPaths = $schedule->media_paths;
+            if (empty($mediaPaths)) {
+                $mediaPaths = [$schedule->media_path];
+            }
+
+            $localMediaPaths = [];
+            foreach ($mediaPaths as $mp) {
+                if (!str_starts_with($mp, 'http://') && !str_starts_with($mp, 'https://')) {
+                    $localFilePath = public_path(str_replace('/storage', 'storage', $mp));
+                    if (file_exists($localFilePath)) {
+                        $localMediaPaths[] = $localFilePath;
+                    } else {
+                        $localMediaPaths[] = $mp;
+                    }
+                } else {
+                    $localMediaPaths[] = $mp;
+                }
+            }
+
+            $jsonExport = [[
+                'id' => $schedule->item_code,
+                'portfolioName' => $schedule->portfolio_name,
+                'mediaPath' => $localMediaPaths[0] ?? $schedule->media_path,
+                'mediaPaths' => $localMediaPaths,
+                'date' => $schedule->target_date->format('Y-m-d'),
+                'time' => $schedule->target_time,
+            ]];
+
+            $scheduleJsonPath = base_path('schedule.json');
+            @file_put_contents($scheduleJsonPath, json_encode($jsonExport, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+            $basePath = base_path();
+            $pythonBin = $this->getPythonBinary();
+
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                $cmd = "start \"Meta Story Auto Scheduler Bot (Satuan)\" cmd /k \"cd /d \"{$basePath}\" && {$pythonBin} scheduler.py\"";
+                pclose(popen($cmd, "r"));
+            } else {
+                $venvPython = file_exists(base_path('venv/bin/python3')) ? base_path('venv/bin/python3') : 'python3';
+                $logFile = base_path('storage/logs/bot_runner.log');
+                @touch($logFile);
+                @chmod($logFile, 0777);
+
+                $cmd = "export PLAYWRIGHT_BROWSERS_PATH=/var/www/meta.damaijaya.my.id/ms-playwright && cd \"{$basePath}\" && xvfb-run -a {$venvPython} scheduler.py >> storage/logs/bot_runner.log 2>&1 &";
+                exec($cmd, $output, $returnVar);
+            }
+
+            $msg = "Berhasil memicu pengiriman satuan untuk item '{$schedule->item_code}'! Bot Playwright sedang memproses di latar belakang.";
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'item_code' => $schedule->item_code
+                ]);
+            }
+
+            return redirect()->back()->with('success', $msg);
+
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Gagal mengirim satuan: ' . $e->getMessage()], 500);
+            }
+            return redirect()->back()->with('error', 'Gagal mengirim satuan: ' . $e->getMessage());
+        }
+    }
+
     public function syncAndRunBot(Request $request)
     {
         try {

@@ -16,6 +16,16 @@
                 Daftar slot jadwal posting otomatis berbasis **Rolling 29-Day Buffer**.
             </p>
         </div>
+
+        <div class="flex items-center space-x-3">
+            @if($stats['failed'] > 0)
+                <button onclick="retryAllFailedSchedules()" 
+                        class="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2 animate-pulse text-xs">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>🔄 Kirim Ulang Semua Error ({{ $stats['failed'] }} Item)</span>
+                </button>
+            @endif
+        </div>
     </div>
 
     <!-- Stats Summary Cards -->
@@ -84,6 +94,10 @@
                    class="px-3 py-1.5 rounded-lg font-semibold transition {{ $statusFilter === 'completed' ? 'bg-emerald-600 text-white shadow' : 'text-gray-400 hover:text-white' }}">
                     Completed ({{ $stats['completed'] }})
                 </a>
+                <a href="{{ route('schedules.index', ['status' => 'failed']) }}" 
+                   class="px-3 py-1.5 rounded-lg font-semibold transition {{ $statusFilter === 'failed' ? 'bg-red-600 text-white shadow' : 'text-gray-400 hover:text-white' }}">
+                    Failed ({{ $stats['failed'] }})
+                </a>
             </div>
         </div>
 
@@ -97,7 +111,7 @@
                         <th class="px-6 py-4">Media Preview</th>
                         <th class="px-6 py-4">Target Tayang</th>
                         <th class="px-6 py-4">Status</th>
-                        <th class="px-6 py-4 text-right">Aksi</th>
+                        <th class="px-6 py-4 text-right">Aksi Execution</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-800" id="scheduleTableBody">
@@ -168,11 +182,22 @@
 
                             <!-- Action Buttons -->
                             <td class="px-6 py-4 text-right">
-                                <button onclick="deleteSchedule({{ $item->id }})" 
-                                        class="p-2 bg-red-950/40 text-red-400 hover:bg-red-900/60 rounded-lg transition border border-red-900/50" 
-                                        title="Hapus item">
-                                    <i class="fa-solid fa-trash-can text-xs"></i>
-                                </button>
+                                <div class="flex items-center justify-end space-x-2">
+                                    <!-- Tombol Kirim Satuan -->
+                                    <button onclick="runSingleSchedule({{ $item->id }}, '{{ $item->item_code }}')" 
+                                            class="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1.5"
+                                            title="Kirim item jadwal ini saja secara satuan">
+                                        <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                                        <span>{{ $item->status === 'failed' ? 'Kirim Ulang' : 'Kirim Satuan' }}</span>
+                                    </button>
+
+                                    <!-- Tombol Hapus -->
+                                    <button onclick="deleteSchedule({{ $item->id }})" 
+                                            class="p-1.5 bg-red-950/40 text-red-400 hover:bg-red-900/60 rounded-xl transition border border-red-900/50" 
+                                            title="Hapus item antrean">
+                                        <i class="fa-solid fa-trash-can text-xs"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -198,6 +223,69 @@
 
 @section('scripts')
 <script>
+    function showDetailedErrorModal(itemCode, errorNotes) {
+        Swal.fire({
+            icon: 'error',
+            title: `Detail Catatan Error (${itemCode})`,
+            html: `<div class="p-3 bg-red-950/60 border border-red-800 rounded-xl text-xs text-red-200 font-mono text-left">${errorNotes || 'Tidak ada pesan detail error.'}</div>`,
+            confirmButtonText: 'Tutup',
+            customClass: {
+                popup: 'swal2-popup-dark max-w-lg',
+                title: 'swal2-title-dark'
+            }
+        });
+    }
+
+    function runSingleSchedule(id, itemCode) {
+        showLoading('Memproses Pengiriman Satuan...', `Memicu eksekusi bot Playwright khusus untuk item '${itemCode}'...`);
+
+        fetch(`/schedules/${id}/run-single`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Berhasil Diproses!', data.message);
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('error', 'Gagal Eksekusi', data.message);
+            }
+        })
+        .catch(err => {
+            showAlert('error', 'Kesalahan Sistem', err.message);
+        });
+    }
+
+    function retryAllFailedSchedules() {
+        showLoading('Mereset & Kirim Ulang...', 'Mereset status seluruh item error dan memicu eksekusi ulang bot...');
+
+        fetch("{{ route('schedules.retryFailed') }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Berhasil Di-Reset!', data.message);
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('info', 'Info Antrean', data.message);
+            }
+        })
+        .catch(err => {
+            showAlert('error', 'Kesalahan Sistem', err.message);
+        });
+    }
+
     function deleteSchedule(id) {
         Swal.fire({
             title: 'Hapus Item Jadwal?',

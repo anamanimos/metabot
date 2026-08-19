@@ -51,6 +51,36 @@
       "sameSite": "None"
     },
     {
+      "name": "c_user",
+      "value": "100002953850592",
+      "domain": ".facebook.com",
+      "path": "/",
+      "expires": 1818658115.148418,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "xs",
+      "value": "16%3AjsX_9tWl02ga6w%3A2%3A1787122116%3A-1%3A-1%3A%3AAczaWk9Tho_wnfWtRK-rK88EXMauVhVtDd0PrH5odw",
+      "domain": ".facebook.com",
+      "path": "/",
+      "expires": 1818658115.14854,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "wd",
+      "value": "1280x850",
+      "domain": ".facebook.com",
+      "path": "/",
+      "expires": 1787727025,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
       "name": "fr",
       "value": "1F2YXtTtM7LM8igQG.AWd8enr6Pw6uoq0LAB2v6RUI-mdQOMwfxCtr9NWhGe6TLF7ha24.BqhBPr..AAA.0.0.BqhBPr.AWeOwbbTmK2j3ACaocsLHqY47Wk",
       "domain": ".facebook.com",
@@ -61,13 +91,13 @@
       "sameSite": "None"
     },
     {
-      "name": "wd",
-      "value": "1280x850",
+      "name": "alsfid",
+      "value": "{\"id\":\"f5cd5fcb1\",\"timestamp\":1787122229494}",
       "domain": ".facebook.com",
       "path": "/",
-      "expires": 1787726600,
+      "expires": 1787122289.494248,
       "httpOnly": false,
-      "secure": true,
+      "secure": false,
       "sameSite": "Lax"
     }
   ],
@@ -81,7 +111,7 @@
         },
         {
           "name": "hb_timestamp",
-          "value": "1787113973668"
+          "value": "1787122146536"
         },
         {
           "name": "CacheStorageVersion",
@@ -93,11 +123,11 @@
         },
         {
           "name": "signal_flush_timestamp",
-          "value": "1787113943713"
+          "value": "1787122116536"
         },
         {
           "name": "Session",
-          "value": "l6svwh:1787121837165"
+          "value": "x6mozn:1787122264091"
         },
         {
           "name": "banzai:last_storage_flush",

@@ -25,6 +25,8 @@ Route::post('projects/{id}/add-media', [ProjectController::class, 'addMedia'])->
 Route::get('schedules', [ScheduleController::class, 'index'])->name('schedules.index');
 Route::delete('schedules/{id}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');
 Route::post('schedules/sync-run', [ScheduleController::class, 'syncAndRunBot'])->name('schedules.syncRun');
+Route::post('schedules/retry-failed', [ScheduleController::class, 'retryFailed'])->name('schedules.retryFailed');
+Route::post('schedules/{id}/run-single', [ScheduleController::class, 'runSingle'])->name('schedules.runSingle');
 Route::get('schedules/execution-progress', [ScheduleController::class, 'executionProgress'])->name('schedules.executionProgress');
 
 // Meta Accounts Routes
